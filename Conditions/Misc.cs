@@ -2,8 +2,8 @@ using System;
 using System.Text.RegularExpressions;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Interface;
-using ImGuiNET;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
+using Dalamud.Bindings.ImGui;
 
 namespace QoLBar.Conditions;
 
