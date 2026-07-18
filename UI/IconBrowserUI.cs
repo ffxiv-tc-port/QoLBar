@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Dalamud.Bindings.ImGui;
+using ImGuiNET;
 using Dalamud.Interface.Utility;
 
 namespace QoLBar;
@@ -270,7 +270,7 @@ public static class IconBrowserUI
         var cache = _iconCache[_name];
 
         ImGuiListClipperPtr clipper;
-        unsafe { clipper = new(ImGuiNative.ImGuiListClipper()); }
+        unsafe { clipper = new(ImGuiNative.ImGuiListClipper_ImGuiListClipper()); }
         clipper.Begin((cache.Count - 1) / _columns + 1, _iconSize + ImGui.GetStyle().ItemSpacing.Y);
 
         var iconSize = new Vector2(_iconSize);
@@ -297,10 +297,10 @@ public static class IconBrowserUI
                         var tex = QoLBar.TextureDictionary[icon];
                         if (!ImGui.IsMouseDown(ImGuiMouseButton.Right))
                             ImGui.SetTooltip($"{icon}");
-                        else if (tex != null && tex.Handle != nint.Zero)
+                        else if (tex != null && tex.ImGuiHandle != nint.Zero)
                         {
                             ImGui.BeginTooltip();
-                            ImGui.Image(tex.Handle, new Vector2(700 * ImGuiHelpers.GlobalScale));
+                            ImGui.Image(tex.ImGuiHandle, new Vector2(700 * ImGuiHelpers.GlobalScale));
                             ImGui.EndTooltip();
                         }
                     }

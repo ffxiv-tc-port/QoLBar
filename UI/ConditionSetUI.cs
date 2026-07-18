@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
-using Dalamud.Bindings.ImGui;
+using ImGuiNET;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using QoLBar.Conditions;

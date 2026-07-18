@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using Dalamud.Interface;
-using Dalamud.Bindings.ImGui;
+using ImGuiNET;
 
 namespace QoLBar;
 

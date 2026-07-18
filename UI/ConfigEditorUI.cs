@@ -3,7 +3,7 @@ using System.Numerics;
 using System.Text;
 using System.Collections.Generic;
 using System.Linq;
-using Dalamud.Bindings.ImGui;
+using ImGuiNET;
 using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Utility;
 using static QoLBar.BarCfg;
@@ -15,8 +15,9 @@ namespace QoLBar;
 public static class ConfigEditorUI
 {
     private static int _inputPos = 0;
-    private static unsafe int GetCursorPosCallback(ImGuiInputTextCallbackDataPtr data)
+    private static unsafe int GetCursorPosCallback(ImGuiInputTextCallbackData* dataPtr)
     {
+        var data = new ImGuiInputTextCallbackDataPtr(dataPtr);
         _inputPos = data.CursorPos;
         return 0;
     }

@@ -95,9 +95,6 @@ public class DalamudApi
     public static IPartyFinderGui PartyFinderGui { get; private set; }
 
     [PluginService]
-    public static IPlayerState PlayerState { get; private set; }
-
-    [PluginService]
     public static IPartyList PartyList { get; private set; }
 
     [PluginService]

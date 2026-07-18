@@ -1,4 +1,4 @@
-using Dalamud.Bindings.ImGui;
+using ImGuiNET;
 
 namespace QoLBar.Conditions;
 

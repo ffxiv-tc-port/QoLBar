@@ -57,7 +57,7 @@ public unsafe class Game
     public static AgentInventoryContext* agentInventoryContext;
 
     public static AddonConfig* addonConfig;
-    public static int CurrentHUDLayout => addonConfig->ActiveDataSet->CurrentHudLayout;
+    public static int CurrentHUDLayout => addonConfig->ModuleData->CurrentHudLayout;
 
     // Command Execution
     public delegate void ProcessChatBoxDelegate(UIModule* uiModule, nint message, nint unused, byte a4);
@@ -137,7 +137,7 @@ public unsafe class Game
 
     public static void ReadyCommand()
     {
-        if (chatQueueTimer > 0 && (chatQueueTimer -= Dalamud.Bindings.ImGui.ImGui.GetIO().DeltaTime) <= 0 && chatQueue.Count > 0)
+        if (chatQueueTimer > 0 && (chatQueueTimer -= ImGuiNET.ImGui.GetIO().DeltaTime) <= 0 && chatQueue.Count > 0)
             ExecuteCommand(chatQueue.Dequeue(), true);
 
         if (retryItem > 0)
@@ -339,7 +339,7 @@ public unsafe class Game
         macroQueue.Clear();
     }
 
-    public static AtkUnitBase* GetAddonStructByName(string name, int index) => (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName(name, index).Address;
+    public static AtkUnitBase* GetAddonStructByName(string name, int index) => (AtkUnitBase*)DalamudApi.GameGui.GetAddonByName(name, index);
 
     public static AtkUnitBase* GetFocusedAddon()
     {

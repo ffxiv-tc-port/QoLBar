@@ -4,7 +4,7 @@ using System.IO;
 using System.Reflection;
 using System.ComponentModel;
 using Newtonsoft.Json;
-using Dalamud.Bindings.ImGui;
+using ImGuiNET;
 using Dalamud.Configuration;
 using Dalamud.Interface.Utility;
 

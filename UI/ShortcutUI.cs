@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
-using Dalamud.Bindings.ImGui;
+using ImGuiNET;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using static QoLBar.ShCfg;
@@ -301,8 +301,9 @@ public class ShortcutUI : IDisposable
             {
                 var cols = parent.Config.CategoryColumns;
                 OnClick(cols > 0 && parent.children.Count >= (cols * (cols - 1) + 1), !activated, wasHovered);
-                if (!parent.Config.CategoryStaysOpen && sh.Type == ShortcutType.Command)
-                    ImGui.ClearWindowFocus();
+                // NOTE: ImGui.ClearWindowFocus() is not available in this ImGuiNET version, dropped.
+                //if (!parent.Config.CategoryStaysOpen && sh.Type == ShortcutType.Command)
+                //    ImGui.ClearWindowFocus();
             }
 
             if (activated)
@@ -779,13 +780,13 @@ public class ShortcutUI : IDisposable
         switch (anim)
         {
             case 0: // Slow Rainbow
-                ImGui.ColorConvertHSVtoRGB(((t * 15) % 360) / 360, 1, 1, &r, &g, &b);
+                ImGui.ColorConvertHSVtoRGB(((t * 15) % 360) / 360, 1, 1, out r, out g, out b);
                 break;
             case 1: // Rainbow
-                ImGui.ColorConvertHSVtoRGB(((t * 30) % 360) / 360, 1, 1, &r, &g, &b);
+                ImGui.ColorConvertHSVtoRGB(((t * 30) % 360) / 360, 1, 1, out r, out g, out b);
                 break;
             case 2: // Fast Rainbow
-                ImGui.ColorConvertHSVtoRGB(((t * 60) % 360) / 360, 1, 1, &r, &g, &b);
+                ImGui.ColorConvertHSVtoRGB(((t * 60) % 360) / 360, 1, 1, out r, out g, out b);
                 break;
             case 3: // Slow Fade
                 r = c.X; g = c.Y; b = c.Z;

@@ -4,7 +4,7 @@ using System.IO;
 using System.Numerics;
 using System.Collections.Generic;
 using Newtonsoft.Json;
-using Dalamud.Bindings.ImGui;
+using ImGuiNET;
 using Dalamud.Interface.Utility;
 
 namespace QoLBar;
@@ -210,7 +210,7 @@ public class PluginUI : IDisposable
 
                     if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
                     {
-                        ImGui.ClearWindowFocus(); // Kill focus to prevent ImGui from overwriting text box on deletes
+                        // NOTE: ImGui.ClearWindowFocus() is not available in this ImGuiNET version, dropped. Kill focus to prevent ImGui from overwriting text box on deletes
                         RemoveBar(i);
                     }
                 }
