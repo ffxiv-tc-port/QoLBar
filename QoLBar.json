@@ -1,8 +1,8 @@
 {
   "Author": "UnknownX, Lother",
   "Name": "QoL Bar",
-  "Punchline": "Customizable ImGui hotbars",
-  "Description": "A plugin designed to provide a simple, customizable and always available interface for chat commands\nor other plugins to alleviate the need for using macros and hotbar space to achieve similar results.\n\nThe plugin should initially appear as a small box on the bottom center of the game window.",
+  "Punchline": "可自訂的 ImGui 快捷列",
+  "Description": "此外掛旨在為聊天指令或其他外掛提供簡單、可自訂且隨時可用的介面，\n減少為達成類似效果而需要使用巨集或佔用快捷列空間的需求。\n\n此外掛初次啟動時應會顯示在遊戲視窗底部中央的一個小方框。",
   "IconUrl": "https://raw.githubusercontent.com/goatcorp/PluginDistD17/main/stable/QoLBar/images/icon.png",
   "ImageUrls": [
     ""

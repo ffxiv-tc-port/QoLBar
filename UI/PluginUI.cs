@@ -78,37 +78,37 @@ public class PluginUI : IDisposable
         if (!ImGuiEx.SetBoolOnGameFocus(ref _displayOutsideMain)) return;
 
         ImGui.SetNextWindowSizeConstraints(new Vector2(610, 650) * ImGuiHelpers.GlobalScale, ImGuiHelpers.MainViewport.Size);
-        ImGui.Begin("QoL Bar Configuration", ref configOpen);
+        ImGui.Begin("QoL Bar 設定", ref configOpen);
 
         ImGuiEx.ShouldDrawInViewport(out _displayOutsideMain);
 
         if (ImGui.BeginTabBar("Config Tabs"))
         {
-            if (ImGui.BeginTabItem("Bar Manager"))
+            if (ImGui.BeginTabItem("快捷列管理"))
             {
                 DrawBarManager();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("Condition Sets"))
+            if (ImGui.BeginTabItem("條件集"))
             {
                 ConditionSetUI.Draw();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("Backups"))
+            if (ImGui.BeginTabItem("備份"))
             {
                 DrawBackupManager();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("Settings"))
+            if (ImGui.BeginTabItem("設定"))
             {
                 DrawSettingsMenu();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("Debug"))
+            if (ImGui.BeginTabItem("除錯"))
             {
                 DrawDebugMenu();
                 ImGui.EndTabItem();
@@ -149,18 +149,18 @@ public class PluginUI : IDisposable
 
             if (ImGui.Button("O", letterButtonSize))
                 ImGui.OpenPopup($"BarConfig##{i}");
-            ImGuiEx.SetItemTooltip("Options");
+            ImGuiEx.SetItemTooltip("選項");
             bars[i].DrawConfig();
             ImGui.SameLine();
             ImGui.SetNextItemWidth(27 * ImGuiHelpers.GlobalScale);
             if (ImGui.Button(bar.Hidden ? "R" : "H", letterButtonSize))
                 bars[i].IsHidden = !bars[i].IsHidden;
-            ImGuiEx.SetItemTooltip(bar.Hidden ? "Reveal" : "Hide");
+            ImGuiEx.SetItemTooltip(bar.Hidden ? "顯示" : "隱藏");
             ImGui.SameLine();
-            var preview = ((bar.ConditionSet >= 0) && (bar.ConditionSet < QoLBar.Config.CndSetCfgs.Count)) ? $"[{bar.ConditionSet + 1}] {QoLBar.Config.CndSetCfgs[bar.ConditionSet].Name}" : "Condition Set";
+            var preview = ((bar.ConditionSet >= 0) && (bar.ConditionSet < QoLBar.Config.CndSetCfgs.Count)) ? $"[{bar.ConditionSet + 1}] {QoLBar.Config.CndSetCfgs[bar.ConditionSet].Name}" : "條件集";
             if (ImGui.BeginCombo("##Condition", preview))
             {
-                if (ImGui.Selectable("None", bar.ConditionSet == -1))
+                if (ImGui.Selectable("無", bar.ConditionSet == -1))
                 {
                     bar.ConditionSet = -1;
                     QoLBar.Config.Save();
@@ -175,9 +175,9 @@ public class PluginUI : IDisposable
                 }
                 ImGui.EndCombo();
             }
-            ImGuiEx.SetItemTooltip("Applies a condition set to the bar that will control when it is shown.\n" +
-                                   "Useful for making groups of bars that all display at the same time.\n" +
-                                   "You can make these on the \"Condition Sets\" tab at the top of this window.");
+            ImGuiEx.SetItemTooltip("為此快捷列套用條件集，用以控制其顯示的時機。\n" +
+                                   "適合用來建立會同時顯示的多個快捷列群組。\n" +
+                                   "你可以在此視窗上方的「條件集」分頁中建立這些條件集。");
 
             ImGui.NextColumn();
 
@@ -187,12 +187,12 @@ public class PluginUI : IDisposable
             if (ImGui.Button("↓"))
                 ShiftBar(i, true);
             ImGui.SameLine();
-            if (ImGui.Button("Export"))
+            if (ImGui.Button("匯出"))
                 ImGui.SetClipboardText(ExportBar(i, false));
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Export to clipboard with minimal settings (May change with updates).\n" +
-                                 "Right click to export with every setting (Longer string, doesn't change).");
+                ImGui.SetTooltip("以精簡設定匯出到剪貼簿（可能隨更新而改變）。\n" +
+                                 "右鍵點擊可匯出所有設定（字串較長，不會改變）。");
 
                 if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
                     ImGui.SetClipboardText(ExportBar(i, true));
@@ -201,12 +201,12 @@ public class PluginUI : IDisposable
             if (bars.Count > 1)
             {
                 ImGui.SameLine();
-                if (ImGui.Button(QoLBar.Config.ExportOnDelete ? "Cut" : "Delete"))
+                if (ImGui.Button(QoLBar.Config.ExportOnDelete ? "剪下" : "刪除"))
                     ConfigEditorUI.DisplayRightClickDeleteMessage();
                 if (ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip($"Right click this button to delete bar #{i + 1}!" +
-                                     (QoLBar.Config.ExportOnDelete ? "\nThe bar will be exported to clipboard first." : ""));
+                    ImGui.SetTooltip($"右鍵點擊此按鈕以刪除快捷列 #{i + 1}！" +
+                                     (QoLBar.Config.ExportOnDelete ? "\n此快捷列將會先匯出到剪貼簿。" : ""));
 
                     if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
                     {
