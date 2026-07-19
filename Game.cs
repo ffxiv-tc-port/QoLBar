@@ -70,8 +70,8 @@ public unsafe class Game
 
     // Macro Execution
     public delegate void ExecuteMacroDelegate(RaptureShellModule* raptureShellModule, nint macro);
-    [Signature("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8D 4E ?? 49 8B D6")]
-    public static Hook<ExecuteMacroDelegate> ExecuteMacroHook;
+    [Signature("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8D 4D 28", Fallibility = Fallibility.Fallible)]
+    public static Hook<ExecuteMacroDelegate>? ExecuteMacroHook;
     public static RaptureShellModule* raptureShellModule;
     public static RaptureMacroModule* raptureMacroModule;
 
@@ -125,14 +125,14 @@ public unsafe class Game
             .ToDictionary(kv => kv.Key, kv => kv.Value);
         usables[aetherCompassID] = DalamudApi.DataManager.GetExcelSheet<Lumina.Excel.Sheets.EventItem>().GetRowOrDefault(aetherCompassID)?.Name.ToString().ToLower();
 
-        ExecuteMacroHook.Enable();
+        ExecuteMacroHook?.Enable();
     }
 
     public static void ExecuteMacroDetour(RaptureShellModule* raptureShellModule, nint macro)
     {
         NumCopiedMacroLines = Macro.numLines;
         NumExecutedMacroLines = Macro.numLines;
-        ExecuteMacroHook.Original(raptureShellModule, macro);
+        ExecuteMacroHook!.Original(raptureShellModule, macro);
     }
 
     public static void ReadyCommand()
@@ -185,7 +185,11 @@ public unsafe class Game
                     case 'm': // Execute Macro
                         try
                         {
-                            if (int.TryParse(command[1..], out var macro))
+                            if (ExecuteMacroHook == null)
+                            {
+                                QoLBar.PrintError("Macro execution is unavailable on this game client.");
+                            }
+                            else if (int.TryParse(command[1..], out var macro))
                             {
                                 if (macro is >= 0 and < 200)
                                 {
@@ -315,6 +319,9 @@ public unsafe class Game
 
         try
         {
+            if (ExecuteMacroHook == null)
+                throw new InvalidOperationException("Macro execution is unavailable on this game client.");
+
             var count = (byte)Math.Max(Macro.numLines, macroQueue.Count);
             if (count > Macro.numLines && macroQueue.Any(IsChatSendCommand))
             {
