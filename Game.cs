@@ -102,7 +102,7 @@ public unsafe class Game
     private static Dictionary<uint, string> usables;
     [Signature("48 8D 0D ?? ?? ?? ?? 4C 8B C0 8B D7", ScanType = ScanType.StaticAddress)]
     private static nint performanceStruct;
-    [Signature("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 45 33 C0")]
+    [Signature("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 45 33 C0", Fallibility = Fallibility.Fallible)]
     private static delegate* unmanaged<nint, byte, void> startPerformance;
 
     public static void Initialize()
@@ -405,7 +405,11 @@ public unsafe class Game
 
     public static float GetRecastTimeElapsed(byte actionType, uint actionID) => GetRecastTimeElapsed((ActionType)actionType, actionID);
 
-    public static void StartPerformance(byte instrument) => startPerformance(performanceStruct, instrument);
+    public static void StartPerformance(byte instrument)
+    {
+        if (startPerformance != null)
+            startPerformance(performanceStruct, instrument);
+    }
 
     public static void Dispose()
     {
