@@ -35,7 +35,7 @@ public static class ConditionSetUI
 
         if (ImGui.Button(FontAwesomeIcon.Plus.ToIconString(), buttonSize))
         {
-            QoLBar.Config.CndSetCfgs.Add(new() { Name = "New Set" });
+            QoLBar.Config.CndSetCfgs.Add(new() { Name = "新條件集" });
             QoLBar.Config.Save();
         }
 
@@ -59,7 +59,7 @@ public static class ConditionSetUI
             ImGui.PopStyleColor(4);
 
         ImGui.PopFont();
-        ImGuiEx.SetItemTooltip(!containsSensitiveInfo ? "Export condition set to clipboard." : "Please enable the \"Allow exporting sensitive condition sets\" setting to export this set.");
+        ImGuiEx.SetItemTooltip(!containsSensitiveInfo ? "將條件集匯出到剪貼簿。" : "請先啟用「允許匯出敏感條件集」設定才能匯出此條件集。");
         ImGui.PushFont(UiBuilder.IconFont);
 
         ImGui.SameLine();
@@ -87,7 +87,7 @@ public static class ConditionSetUI
             }
         }
         ImGui.PopFont();
-        ImGuiEx.SetItemTooltip("Import condition set from clipboard.");
+        ImGuiEx.SetItemTooltip("從剪貼簿匯入條件集。");
         ImGui.PushFont(UiBuilder.IconFont);
 
         ImGui.SameLine();
@@ -135,7 +135,7 @@ public static class ConditionSetUI
 
         ImGui.PopFont();
 
-        ImGuiEx.SetItemTooltip("Double click on a set to edit its name.\n\nAdditionally, you can click this to open Dalamud's debug menu\nto see current Condition Flags.");
+        ImGuiEx.SetItemTooltip("雙擊條件集以編輯其名稱。\n\n此外，點擊此處可開啟 Dalamud 的除錯選單\n以檢視目前的條件旗標（Condition Flags）。");
 
         if (ImGui.IsItemHovered() && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
             Game.ExecuteCommand("/xldata condition");
@@ -144,7 +144,7 @@ public static class ConditionSetUI
         var listWidth = (ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X - ImGui.GetStyle().ItemSpacing.X) / 2;
 
         ImGui.SameLine(listWidth);
-        ImGui.TextUnformatted("\t\tDynamic Presets");
+        ImGui.TextUnformatted("\t\t動態預設集");
 
         ImGui.BeginChild("QoLBarConditionSetList", new Vector2(listWidth, listHeight), true);
         DrawConditionSetList();
@@ -284,7 +284,7 @@ public static class ConditionSetUI
 
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Right click this button to delete this condition!");
+                ImGui.SetTooltip("右鍵點擊此按鈕以刪除此條件！");
 
                 if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
                 {
