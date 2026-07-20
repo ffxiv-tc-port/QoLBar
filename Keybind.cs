@@ -422,31 +422,31 @@ public static class Keybind
     public static bool KeybindInput(ShCfg sh)
     {
         var ret = false;
-        if (InputHotkey("Hotkey", ref sh.Hotkey))
+        if (InputHotkey("快捷鍵", ref sh.Hotkey))
         {
             QoLBar.Config.Save();
             ret = true;
         }
-        ImGuiEx.SetItemTooltip("Press escape to clear the hotkey.");
+        ImGuiEx.SetItemTooltip("按下 Escape 以清除快捷鍵。");
 
         if (sh.Hotkey <= 0) return ret;
 
-        if (ImGui.Checkbox("Pass Input to Game", ref sh.KeyPassthrough))
+        if (ImGui.Checkbox("將輸入傳遞給遊戲", ref sh.KeyPassthrough))
             QoLBar.Config.Save();
-        ImGuiEx.SetItemTooltip("Disables the hotkey from blocking the game input.");
+        ImGuiEx.SetItemTooltip("停用此快捷鍵對遊戲輸入的阻擋。");
         return ret;
     }
 
     public static bool KeybindInput(BarCfg bar)
     {
         var ret = false;
-        if (InputHotkey("Pie Hotkey", ref bar.Hotkey))
+        if (InputHotkey("圓餅快捷鍵", ref bar.Hotkey))
         {
             QoLBar.Config.Save();
             ret = true;
         }
-        ImGuiEx.SetItemTooltip("Use this to specify a held hotkey to bring the bar up as a pie menu.\n" +
-                               "Press escape to clear the hotkey.");
+        ImGuiEx.SetItemTooltip("使用此快捷鍵長按時，會將快捷列以圓餅選單的方式顯示。\n" +
+                               "按下 Escape 以清除快捷鍵。");
         return ret;
     }
 
