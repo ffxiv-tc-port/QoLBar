@@ -34,6 +34,7 @@ public class QoLBar : IDalamudPlugin
     public QoLBar(IDalamudPluginInterface pluginInterface)
     {
         Plugin = this;
+        Localization.Init(pluginInterface.AssemblyLocation.DirectoryName);
         DalamudApi.Initialize(this, pluginInterface);
 
         Config = (Configuration)DalamudApi.PluginInterface.GetPluginConfig() ?? new();

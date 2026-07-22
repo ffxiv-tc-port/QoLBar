@@ -218,7 +218,7 @@ public class PluginCommandManager<T> : IDisposable where T : IDalamudPlugin
 
         var commandInfo = new CommandInfo(handlerDelegate)
         {
-            HelpMessage = helpMessage?.HelpMessage ?? string.Empty,
+            HelpMessage = QoLBar.Localization.Loc(helpMessage?.HelpMessage ?? string.Empty),
             ShowInHelp = doNotShowInHelp == null,
         };
 

@@ -16,4 +16,8 @@
         <WriteLinesToFile File="$(BuildNumberFile)" Lines="$(BuildNumber)" Overwrite="true" />
     </Target>
 
+    <ItemGroup>
+        <Content Include="LanguageChineseTraditional.ini" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
 </Project>
