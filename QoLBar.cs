@@ -135,12 +135,12 @@ public class QoLBar : IDalamudPlugin
                         ui.SetBarHidden(bar, true);
                     break;
                 default:
-                    PrintError("Invalid subcommand.");
+                    PrintError("Invalid subcommand.".Loc());
                     break;
             }
         }
         else
-            PrintError("Usage: /qolvisible [on|off|toggle] <bar>");
+            PrintError("Usage: /qolvisible [on|off|toggle] <bar>".Loc());
     }
 
     [Command("/performance")]
@@ -153,7 +153,7 @@ public class QoLBar : IDalamudPlugin
             b = (byte)r.RowId;
 
         if (b == 0)
-            PrintError("Invalid instrument.");
+            PrintError("Invalid instrument.".Loc());
         else
             Game.StartPerformance(b);
     }

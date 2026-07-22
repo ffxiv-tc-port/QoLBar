@@ -143,7 +143,7 @@ public static class ConfigEditorUI
 
             unsafe
             {
-                if (ImGui.InputTextMultiline("Command##Input", ref sh.Command, 65535, new Vector2(0, height), ImGuiInputTextFlags.CallbackAlways, GetCursorPosCallback) && editing)
+                if (ImGui.InputTextMultiline("Command".Loc() + "##Input", ref sh.Command, 65535, new Vector2(0, height), ImGuiInputTextFlags.CallbackAlways, GetCursorPosCallback) && editing)
                     QoLBar.Config.Save();
             }
             AddRightClickPrivateUsePopup(ref sh.Command);

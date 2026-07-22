@@ -187,7 +187,7 @@ public unsafe class Game
                         {
                             if (ExecuteMacroHook == null)
                             {
-                                QoLBar.PrintError("Macro execution is unavailable on this game client.");
+                                QoLBar.PrintError("Macro execution is unavailable on this game client.".Loc());
                             }
                             else if (int.TryParse(command[1..], out var macro))
                             {
@@ -206,7 +206,7 @@ public unsafe class Game
                                 }
                                 else
                                 {
-                                    QoLBar.PrintError("Invalid macro. Usage: \"//m0\" for individual macro #0, \"//m100\" for shared macro #0, valid up to 199.");
+                                    QoLBar.PrintError("Invalid macro. Usage: \"//m0\" for individual macro #0, \"//m100\" for shared macro #0, valid up to 199.".Loc());
                                 }
                             }
                             else
@@ -223,7 +223,7 @@ public unsafe class Game
                                 }
                             }
                         }
-                        catch { QoLBar.PrintError("Failed running macro"); }
+                        catch { QoLBar.PrintError("Failed running macro".Loc()); }
                         break;
                     case 'i': // Item
                         if (!macroMode)
@@ -235,7 +235,7 @@ public unsafe class Game
                         }
                         else
                         {
-                            QoLBar.PrintError("Macros do not support item usage.");
+                            QoLBar.PrintError("Macros do not support item usage.".Loc());
                         }
                         break;
                     case ' ': // Comment
@@ -253,7 +253,7 @@ public unsafe class Game
                         commandReady = true;
                     }
                     else
-                        QoLBar.PrintError("Failed to add command to macro, capacity reached. Please close off the macro with another \"//m\" if you didn't intend to do this.");
+                        QoLBar.PrintError("Failed to add command to macro, capacity reached. Please close off the macro with another \"//m\" if you didn't intend to do this.".Loc());
                 }
                 else
                     ExecuteCommand(command, IsChatSendCommand(command));
@@ -281,7 +281,7 @@ public unsafe class Game
             else
                 chatQueue.Enqueue(command);
         }
-        catch { QoLBar.PrintError("Failed injecting command"); }
+        catch { QoLBar.PrintError("Failed injecting command".Loc()); }
 
         Marshal.FreeHGlobal(stringPtr);
     }
@@ -325,7 +325,7 @@ public unsafe class Game
             var count = (byte)Math.Max(Macro.numLines, macroQueue.Count);
             if (count > Macro.numLines && macroQueue.Any(IsChatSendCommand))
             {
-                QoLBar.PrintError("Macros using more than 15 lines do not support chat message commands!");
+                QoLBar.PrintError("Macros using more than 15 lines do not support chat message commands!".Loc());
                 throw new InvalidOperationException();
             }
 
@@ -340,7 +340,7 @@ public unsafe class Game
 
             NumCopiedMacroLines = Macro.numLines;
         }
-        catch { QoLBar.PrintError("Failed injecting macro"); }
+        catch { QoLBar.PrintError("Failed injecting macro".Loc()); }
 
         Marshal.FreeHGlobal(macroPtr);
         macroQueue.Clear();

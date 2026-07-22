@@ -36,7 +36,7 @@ public static class IconBrowserUI
 
         var iconSize = 48 * ImGuiHelpers.GlobalScale;
         ImGui.SetNextWindowSizeConstraints(new Vector2((iconSize + ImGui.GetStyle().ItemSpacing.X) * 11 + ImGui.GetStyle().WindowPadding.X * 2 + 8), ImGuiHelpers.MainViewport.Size); // whyyyyyyyyyyyyyyyyyyyy
-        ImGui.Begin("Icon Browser", ref iconBrowserOpen);
+        ImGui.Begin("Icon Browser".Loc(), ref iconBrowserOpen);
 
         ImGuiEx.ShouldDrawInViewport(out _displayOutsideMain);
 
@@ -46,17 +46,17 @@ public static class IconBrowserUI
         if (ImGui.BeginTabBar("Icon Tabs", ImGuiTabBarFlags.NoTooltip))
         {
             BeginIconList(" ★ ", iconSize);
-            AddIcons(0, 100, "System");
-            AddIcons(62_000, 62_600, "Classes/Jobs");
-            AddIcons(62_800, 62_900, "Gearsets");
-            AddIcons(66_000, 66_400, "Macros");
-            AddIcons(90_000, 100_000, "FC Crests/Symbols");
-            AddIcons(114_000, 114_100, "New Game+");
-            AddIcons(230_850, 231_000, "Classes/Jobs (GPose)");
-            AddIcons(TextureDictionary.FrameIconID, TextureDictionary.FrameIconID + 3000, "Extra");
+            AddIcons(0, 100, "System".Loc());
+            AddIcons(62_000, 62_600, "Classes/Jobs".Loc());
+            AddIcons(62_800, 62_900, "Gearsets".Loc());
+            AddIcons(66_000, 66_400, "Macros".Loc());
+            AddIcons(90_000, 100_000, "FC Crests/Symbols".Loc());
+            AddIcons(114_000, 114_100, "New Game+".Loc());
+            AddIcons(230_850, 231_000, "Classes/Jobs (GPose)".Loc());
+            AddIcons(TextureDictionary.FrameIconID, TextureDictionary.FrameIconID + 3000, "Extra".Loc());
             EndIconList();
 
-            BeginIconList("Custom", iconSize);
+            BeginIconList("Custom".Loc(), iconSize);
             ImGuiEx.SetItemTooltip(("Place images inside \"%AppData%\\XIVLauncher\\pluginConfigs\\QoLBar\\icons\"\n" +
                                    "to load them as usable icons, the file names must be in the format \"#.img\" (# > 0).\n" +
                                    "I.e. \"1.jpg\" \"2.png\" \"3.png\" \"732487.jpg\" and so on.").Loc());
@@ -77,124 +77,124 @@ public static class IconBrowserUI
             _tooltip = "";
             EndIconList();
 
-            BeginIconList("Misc", iconSize);
-            AddIcons(60_000, 61_000, "UI");
-            AddIcons(61_200, 61_250, "Markers");
-            AddIcons(61_290, 61_390, "Markers 2");
-            AddIcons(61_390, 62_000, "UI 2");
-            AddIcons(62_600, 62_620, "HQ FC Banners");
-            AddIcons(63_900, 64_000, "Map Markers");
-            AddIcons(64_500, 64_550, "Stamps");
-            AddIcons(65_000, 65_900, "Currencies");
-            AddIcons(180_000, 180_060, "Chocobo Racing");
-            AddIcons(230_000, 230_850, "GPose");
-            AddIcons(231_000, 240_000, "GPose 2");
+            BeginIconList("Misc".Loc(), iconSize);
+            AddIcons(60_000, 61_000, "UI".Loc());
+            AddIcons(61_200, 61_250, "Markers".Loc());
+            AddIcons(61_290, 61_390, "Markers 2".Loc());
+            AddIcons(61_390, 62_000, "UI 2".Loc());
+            AddIcons(62_600, 62_620, "HQ FC Banners".Loc());
+            AddIcons(63_900, 64_000, "Map Markers".Loc());
+            AddIcons(64_500, 64_550, "Stamps".Loc());
+            AddIcons(65_000, 65_900, "Currencies".Loc());
+            AddIcons(180_000, 180_060, "Chocobo Racing".Loc());
+            AddIcons(230_000, 230_850, "GPose".Loc());
+            AddIcons(231_000, 240_000, "GPose 2".Loc());
             EndIconList();
 
-            BeginIconList("Misc 2", iconSize);
-            AddIcons(62_900, 63_200, "Achievements/Hunting Log");
-            AddIcons(63_875, 63_900, "Cosmic Exploration");
-            AddIcons(65_900, 66_000, "Fishing");
-            AddIcons(66_400, 66_500, "Tags");
-            AddIcons(67_000, 68_000, "Fashion Log");
-            AddIcons(70_120, 70_200, "Animals");
-            AddIcons(70_500, 70_960, "Cosmic Exploration 2");
-            AddIcons(70_960, 71_450, "Quests");
-            AddIcons(72_000, 72_500, "BLU UI");
-            AddIcons(72_500, 72_620, "Bozja UI");
-            AddIcons(76_000, 76_200, "Mahjong");
-            AddIcons(80_000, 80_200, "Quest Log");
-            AddIcons(80_730, 81_000, "Relic Log");
-            AddIcons(82_000, 82_100, "Misc UI");
-            AddIcons(82_270, 82_325, "Occult Crescent UI");
-            AddIcons(83_000, 84_000, "FC Ranks");
-            AddIcons(180_060, 180_100, "UI Text");
-            AddIcons(240_000, 241_000, "Strategy Board");
+            BeginIconList("Misc 2".Loc(), iconSize);
+            AddIcons(62_900, 63_200, "Achievements/Hunting Log".Loc());
+            AddIcons(63_875, 63_900, "Cosmic Exploration".Loc());
+            AddIcons(65_900, 66_000, "Fishing".Loc());
+            AddIcons(66_400, 66_500, "Tags".Loc());
+            AddIcons(67_000, 68_000, "Fashion Log".Loc());
+            AddIcons(70_120, 70_200, "Animals".Loc());
+            AddIcons(70_500, 70_960, "Cosmic Exploration 2".Loc());
+            AddIcons(70_960, 71_450, "Quests".Loc());
+            AddIcons(72_000, 72_500, "BLU UI".Loc());
+            AddIcons(72_500, 72_620, "Bozja UI".Loc());
+            AddIcons(76_000, 76_200, "Mahjong".Loc());
+            AddIcons(80_000, 80_200, "Quest Log".Loc());
+            AddIcons(80_730, 81_000, "Relic Log".Loc());
+            AddIcons(82_000, 82_100, "Misc UI".Loc());
+            AddIcons(82_270, 82_325, "Occult Crescent UI".Loc());
+            AddIcons(83_000, 84_000, "FC Ranks".Loc());
+            AddIcons(180_060, 180_100, "UI Text".Loc());
+            AddIcons(240_000, 241_000, "Strategy Board".Loc());
             EndIconList();
 
-            BeginIconList("Actions", iconSize);
-            AddIcons(100, 4_000, "Classes/Jobs");
-            AddIcons(5_100, 8_000, "Traits");
-            AddIcons(8_000, 9_000, "Fashion");
-            AddIcons(9_000, 10_000, "PvP");
-            AddIcons(19_600, 19_800, "Event");
-            AddIcons(19_800, 20_000, "Mount");
-            AddIcons(61_250, 61_290, "Duties/Trials");
-            AddIcons(64_200, 64_325, "FC");
-            AddIcons(64_550, 64_600, "Occult Crescent");
-            AddIcons(64_600, 64_800, "Eureka");
-            AddIcons(64_800, 65_000, "NPC");
-            AddIcons(70_000, 70_120, "Chocobo Racing");
-            AddIcons(82_200, 82_270, "Occult Crescent 2");
-            AddIcons(246_000, 250_000, "Emotes");
+            BeginIconList("Actions".Loc(), iconSize);
+            AddIcons(100, 4_000, "Classes/Jobs".Loc());
+            AddIcons(5_100, 8_000, "Traits".Loc());
+            AddIcons(8_000, 9_000, "Fashion".Loc());
+            AddIcons(9_000, 10_000, "PvP".Loc());
+            AddIcons(19_600, 19_800, "Event".Loc());
+            AddIcons(19_800, 20_000, "Mount".Loc());
+            AddIcons(61_250, 61_290, "Duties/Trials".Loc());
+            AddIcons(64_200, 64_325, "FC".Loc());
+            AddIcons(64_550, 64_600, "Occult Crescent".Loc());
+            AddIcons(64_600, 64_800, "Eureka".Loc());
+            AddIcons(64_800, 65_000, "NPC".Loc());
+            AddIcons(70_000, 70_120, "Chocobo Racing".Loc());
+            AddIcons(82_200, 82_270, "Occult Crescent 2".Loc());
+            AddIcons(246_000, 250_000, "Emotes".Loc());
             EndIconList();
 
-            BeginIconList("Mounts & Minions", iconSize);
-            AddIcons(4_000, 4_400, "Mounts");
-            AddIcons(4_400, 5_100, "Minions");
-            AddIcons(59_000, 59_400, "Mounts... again?");
-            AddIcons(59_400, 60_000, "Minion Items");
-            AddIcons(68_000, 68_400, "Mounts Log");
-            AddIcons(68_400, 69_000, "Minions Log");
+            BeginIconList("Mounts & Minions".Loc(), iconSize);
+            AddIcons(4_000, 4_400, "Mounts".Loc());
+            AddIcons(4_400, 5_100, "Minions".Loc());
+            AddIcons(59_000, 59_400, "Mounts... again?".Loc());
+            AddIcons(59_400, 60_000, "Minion Items".Loc());
+            AddIcons(68_000, 68_400, "Mounts Log".Loc());
+            AddIcons(68_400, 69_000, "Minions Log".Loc());
             EndIconList();
 
-            BeginIconList("Items", iconSize);
-            AddIcons(20_000, 30_000, "General");
-            AddIcons(50_000, 54_000, "Housing");
-            AddIcons(58_000, 59_000, "Fashion");
+            BeginIconList("Items".Loc(), iconSize);
+            AddIcons(20_000, 30_000, "General".Loc());
+            AddIcons(50_000, 54_000, "Housing".Loc());
+            AddIcons(58_000, 59_000, "Fashion".Loc());
             EndIconList();
 
-            BeginIconList("Equipment", iconSize);
-            AddIcons(30_000, 50_000, "Equipment");
-            AddIcons(54_000, 54_225, "Belts");
-            AddIcons(54_225, 54_400, "Flowers");
-            AddIcons(54_400, 58_000, "Special Equipment");
-            AddIcons(200_000, 210_000, "Glasses");
+            BeginIconList("Equipment".Loc(), iconSize);
+            AddIcons(30_000, 50_000, "Equipment".Loc());
+            AddIcons(54_000, 54_225, "Belts".Loc());
+            AddIcons(54_225, 54_400, "Flowers".Loc());
+            AddIcons(54_400, 58_000, "Special Equipment".Loc());
+            AddIcons(200_000, 210_000, "Glasses".Loc());
             EndIconList();
 
-            BeginIconList("Aesthetics", iconSize);
+            BeginIconList("Aesthetics".Loc(), iconSize);
             AddIcons(130_000, 142_000);
             AddIcons(250_000, 251_001);
             EndIconList();
 
-            BeginIconList("Statuses", iconSize);
+            BeginIconList("Statuses".Loc(), iconSize);
             AddIcons(210_000, 230_000);
             EndIconList();
 
-            BeginIconList("Garbage", iconSize, true);
-            AddIcons(61_000, 61_100, "Splash Logos");
-            AddIcons(62_620, 62_800, "World Map");
-            AddIcons(63_200, 63_875, "Zone Maps");
-            AddIcons(66_500, 67_000, "Gardening Log");
-            AddIcons(69_000, 70_000, "Mount/Minion Footprints");
-            AddIcons(70_200, 70_500, "DoH/DoL Logs");
-            AddIcons(71_450, 71_500, "Credits");
-            AddIcons(78_000, 80_000, "Fishing Log");
-            AddIcons(80_200, 80_730, "Notebooks");
-            AddIcons(81_000, 82_000, "Notebooks 2");
-            AddIcons(82_100, 82_200, "Housing");
-            AddIcons(84_000, 85_000, "Hunts");
-            AddIcons(85_000, 87_000, "Large UI");
-            AddIcons(150_000, 170_000, "Tutorials");
-            AddIcons(190_000, 200_000, "Adventurer Plates");
-            AddIcons(241_000, 241_200, "Cosmic Exploration Zones");
+            BeginIconList("Garbage".Loc(), iconSize, true);
+            AddIcons(61_000, 61_100, "Splash Logos".Loc());
+            AddIcons(62_620, 62_800, "World Map".Loc());
+            AddIcons(63_200, 63_875, "Zone Maps".Loc());
+            AddIcons(66_500, 67_000, "Gardening Log".Loc());
+            AddIcons(69_000, 70_000, "Mount/Minion Footprints".Loc());
+            AddIcons(70_200, 70_500, "DoH/DoL Logs".Loc());
+            AddIcons(71_450, 71_500, "Credits".Loc());
+            AddIcons(78_000, 80_000, "Fishing Log".Loc());
+            AddIcons(80_200, 80_730, "Notebooks".Loc());
+            AddIcons(81_000, 82_000, "Notebooks 2".Loc());
+            AddIcons(82_100, 82_200, "Housing".Loc());
+            AddIcons(84_000, 85_000, "Hunts".Loc());
+            AddIcons(85_000, 87_000, "Large UI".Loc());
+            AddIcons(150_000, 170_000, "Tutorials".Loc());
+            AddIcons(190_000, 200_000, "Adventurer Plates".Loc());
+            AddIcons(241_000, 241_200, "Cosmic Exploration Zones".Loc());
             EndIconList();
 
-            BeginIconList("Spoilers", iconSize, true);
-            AddIcons(87_000, 90_000, "Triple Triad"); // Out of order because people might want to use these
-            AddIcons(72_620, 76_000, "Duty Support");
-            AddIcons(120_000, 130_000, "Popup Texts");
-            AddIcons(142_000, 150_000, "Japanese Popup Texts");
-            AddIcons(181_000, 181_500, "Boss Titles");
+            BeginIconList("Spoilers".Loc(), iconSize, true);
+            AddIcons(87_000, 90_000, "Triple Triad".Loc()); // Out of order because people might want to use these
+            AddIcons(72_620, 76_000, "Duty Support".Loc());
+            AddIcons(120_000, 130_000, "Popup Texts".Loc());
+            AddIcons(142_000, 150_000, "Japanese Popup Texts".Loc());
+            AddIcons(181_000, 181_500, "Boss Titles".Loc());
             EndIconList();
 
-            BeginIconList("Spoilers 2", iconSize, true);
-            AddIcons(71_500, 72_000, "Credits");
-            AddIcons(100_000, 114_000, "Quest Images");
-            AddIcons(114_100, 120_000, "New Game+");
+            BeginIconList("Spoilers 2".Loc(), iconSize, true);
+            AddIcons(71_500, 72_000, "Credits".Loc());
+            AddIcons(100_000, 114_000, "Quest Images".Loc());
+            AddIcons(114_100, 120_000, "New Game+".Loc());
             EndIconList();
 
-            BeginIconList("Unsorted Future Icons", iconSize);
+            BeginIconList("Unsorted Future Icons".Loc(), iconSize);
             AddIcons(10_000, 19_600);
             AddIcons(61_100, 61_200);
             AddIcons(64_000, 64_200);
@@ -217,7 +217,7 @@ public static class IconBrowserUI
 
     private static bool BeginIconList(string name, float iconSize, bool useLowQuality = false)
     {
-        _tooltip = "Contains:";
+        _tooltip = "Contains:".Loc();
         if (ImGui.BeginTabItem(name))
         {
             _name = name;

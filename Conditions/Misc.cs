@@ -115,7 +115,7 @@ public static class MiscConditionHelpers
 [AttributeUsage(AttributeTargets.Class)]
 public class MiscConditionAttribute : Attribute, IConditionCategory
 {
-    public string CategoryName => "Misc";
+    public string CategoryName => "Misc".Loc();
     public int DisplayPriority => 100;
 }
 
@@ -123,7 +123,7 @@ public class MiscConditionAttribute : Attribute, IConditionCategory
 public class LoggedInCondition : ICondition
 {
     public string ID => "l";
-    public string ConditionName => "Is Logged In";
+    public string ConditionName => "Is Logged In".Loc();
     public int DisplayPriority => 0;
     public bool Check(dynamic arg) => DalamudApi.ClientState.IsLoggedIn;
 }
@@ -132,11 +132,11 @@ public class LoggedInCondition : ICondition
 public class CharacterCondition : ICondition, IDrawableCondition, IArgCondition, IOnImportCondition
 {
     public string ID => "c";
-    public string ConditionName => "Character ID";
+    public string ConditionName => "Character ID".Loc();
     public int DisplayPriority => 0;
     public bool Check(dynamic arg) => (ulong)arg == DalamudApi.ClientState.LocalContentId;
     public string GetTooltip(CndCfg cndCfg) => $"ID: {cndCfg.Arg}";
-    public string GetSelectableTooltip(CndCfg cndCfg) => "Selecting this will assign the current character's ID to this condition.";
+    public string GetSelectableTooltip(CndCfg cndCfg) => "Selecting this will assign the current character's ID to this condition.".Loc();
     public void Draw(CndCfg cndCfg)
     {
         if (cndCfg.Arg != 0)
@@ -164,7 +164,7 @@ public class CharacterCondition : ICondition, IDrawableCondition, IArgCondition,
 public class TargetCondition : ICondition, IDrawableCondition, IArgCondition
 {
     public string ID => "t";
-    public string ConditionName => "Target Exists";
+    public string ConditionName => "Target Exists".Loc();
     public int DisplayPriority => 0;
     public bool Check(dynamic arg)
     {
@@ -191,7 +191,7 @@ public class TargetCondition : ICondition, IDrawableCondition, IArgCondition
 public class WeaponDrawnCondition : ICondition
 {
     public string ID => "wd";
-    public string ConditionName => "Weapon Drawn";
+    public string ConditionName => "Weapon Drawn".Loc();
     public int DisplayPriority => 0;
     public bool Check(dynamic arg) => DalamudApi.ClientState.LocalPlayer is { } player && (player.StatusFlags & StatusFlags.WeaponOut) != 0;
 }
@@ -200,7 +200,7 @@ public class WeaponDrawnCondition : ICondition
 public class EorzeaTimespanCondition : ICondition, IDrawableCondition, IArgCondition
 {
     public string ID => "et";
-    public string ConditionName => "Eorzea Timespan";
+    public string ConditionName => "Eorzea Timespan".Loc();
     public int DisplayPriority => 0;
     private static bool CheckEorzeaTimeCondition(string arg)
     {
@@ -218,7 +218,7 @@ public class EorzeaTimespanCondition : ICondition, IDrawableCondition, IArgCondi
 public class LocalTimespanCondition : ICondition, IDrawableCondition, IArgCondition
 {
     public string ID => "lt";
-    public string ConditionName => "Local Timespan";
+    public string ConditionName => "Local Timespan".Loc();
     public int DisplayPriority => 0;
     private static bool CheckLocalTimeCondition(string arg)
     {
@@ -236,7 +236,7 @@ public class LocalTimespanCondition : ICondition, IDrawableCondition, IArgCondit
 public class HUDLayoutCondition : ICondition, IDrawableCondition, IArgCondition
 {
     public string ID => "hl";
-    public string ConditionName => "Current HUD Layout";
+    public string ConditionName => "Current HUD Layout".Loc();
     public int DisplayPriority => 0;
     public bool Check(dynamic arg) => (byte)arg == Game.CurrentHUDLayout;
     public string GetTooltip(CndCfg cndCfg) => null;
@@ -254,7 +254,7 @@ public class HUDLayoutCondition : ICondition, IDrawableCondition, IArgCondition
 public class KeyHeldCondition : ICondition, IDrawableCondition
 {
     public string ID => "k";
-    public string ConditionName => "Key Held";
+    public string ConditionName => "Key Held".Loc();
     public int DisplayPriority => 0;
     public bool Check(dynamic arg) => Keybind.IsHotkeyHeld((int)arg, false);
     public string GetTooltip(CndCfg cndCfg) => null;
@@ -264,7 +264,7 @@ public class KeyHeldCondition : ICondition, IDrawableCondition
         var _ = (int)cndCfg.Arg;
         if (Keybind.InputHotkey("##KeyHeldCondition", ref _))
             cndCfg.Arg = _;
-        ImGuiEx.SetItemTooltip("Press escape to clear the hotkey.");
+        ImGuiEx.SetItemTooltip("Press escape to clear the hotkey.".Loc());
     }
 }
 
@@ -272,10 +272,10 @@ public class KeyHeldCondition : ICondition, IDrawableCondition
 public class PartyCondition : ICondition, IDrawableCondition, IArgCondition
 {
     public string ID => "pt";
-    public string ConditionName => "# Party Member Exists";
+    public string ConditionName => "# Party Member Exists".Loc();
     public int DisplayPriority => 0;
     public unsafe bool Check(dynamic arg) => PronounModule.Instance()->ResolvePlaceholder($"<{arg}>", 0, 0) != null;
-    public string GetTooltip(CndCfg cndCfg) => "This will only return true if the party member exists in the current area.";
+    public string GetTooltip(CndCfg cndCfg) => "This will only return true if the party member exists in the current area.".Loc();
     public string GetSelectableTooltip(CndCfg cndCfg) => null;
     public void Draw(CndCfg cndCfg)
     {
@@ -290,7 +290,7 @@ public class PartyCondition : ICondition, IDrawableCondition, IArgCondition
 public class PetCondition : ICondition
 {
     public string ID => "pe";
-    public string ConditionName => "Pet Exists";
+    public string ConditionName => "Pet Exists".Loc();
     public int DisplayPriority => 0;
     public unsafe bool Check(dynamic arg) => PronounModule.Instance()->ResolvePlaceholder("<pet>", 0, 0) != null;
 }
@@ -299,7 +299,7 @@ public class PetCondition : ICondition
 public class ChocoboCondition : ICondition
 {
     public string ID => "ce";
-    public string ConditionName => "Chocobo Exists";
+    public string ConditionName => "Chocobo Exists".Loc();
     public int DisplayPriority => 0;
     public unsafe bool Check(dynamic arg) => PronounModule.Instance()->ResolvePlaceholder("<c>", 0, 0) != null;
 }
@@ -308,11 +308,11 @@ public class ChocoboCondition : ICondition
 public class SanctuaryCondition : ICondition, IDrawableCondition
 {
     public string ID => "is";
-    public string ConditionName => "In Sanctuary";
+    public string ConditionName => "In Sanctuary".Loc();
     public int DisplayPriority => 0;
     public unsafe bool Check(dynamic arg) => FFXIVClientStructs.FFXIV.Client.Game.UI.TerritoryInfo.Instance()->InSanctuary;
     public string GetTooltip(CndCfg cndCfg) => null;
-    public string GetSelectableTooltip(CndCfg cndCfg) => "This refers to areas that accumulate rested experience.";
+    public string GetSelectableTooltip(CndCfg cndCfg) => "This refers to areas that accumulate rested experience.".Loc();
     public void Draw(CndCfg cndCfg) { }
 }
 
@@ -320,7 +320,7 @@ public class SanctuaryCondition : ICondition, IDrawableCondition
 public class ExplorerModeCondition : ICondition
 {
     public string ID => "em";
-    public string ConditionName => "In Explorer Mode";
+    public string ConditionName => "In Explorer Mode".Loc();
     public int DisplayPriority => 0;
     public bool Check(dynamic arg) => Game.IsInExplorerMode;
 }
@@ -329,11 +329,11 @@ public class ExplorerModeCondition : ICondition
 public class AddonExistsCondition : ICondition, IDrawableCondition, IArgCondition
 {
     public string ID => "ae";
-    public string ConditionName => "Addon Exists";
+    public string ConditionName => "Addon Exists".Loc();
     public int DisplayPriority => 100;
     public unsafe bool Check(dynamic arg) => arg is string addon && Game.GetAddonStructByName(addon, 1) != null;
     public string GetTooltip(CndCfg cndCfg) => null;
-    public string GetSelectableTooltip(CndCfg cndCfg) => "Advanced condition.";
+    public string GetSelectableTooltip(CndCfg cndCfg) => "Advanced condition.".Loc();
     public void Draw(CndCfg cndCfg) => MiscConditionHelpers.DrawAddonInput(cndCfg);
     public dynamic GetDefaultArg(CndCfg cndCfg) => cndCfg.Arg is string ? cndCfg.Arg : string.Empty;
 }
@@ -342,11 +342,11 @@ public class AddonExistsCondition : ICondition, IDrawableCondition, IArgConditio
 public class AddonVisibleCondition : ICondition, IDrawableCondition, IArgCondition
 {
     public string ID => "av";
-    public string ConditionName => "Addon Visible";
+    public string ConditionName => "Addon Visible".Loc();
     public int DisplayPriority => 101;
     public unsafe bool Check(dynamic arg) => arg is string addon && Game.GetAddonStructByName(addon, 1) is var atkBase && atkBase != null && atkBase->IsVisible;
     public string GetTooltip(CndCfg cndCfg) => null;
-    public string GetSelectableTooltip(CndCfg cndCfg) => "Advanced condition.";
+    public string GetSelectableTooltip(CndCfg cndCfg) => "Advanced condition.".Loc();
     public void Draw(CndCfg cndCfg) => MiscConditionHelpers.DrawAddonInput(cndCfg);
     public dynamic GetDefaultArg(CndCfg cndCfg) => cndCfg.Arg is string ? cndCfg.Arg : string.Empty;
 }
@@ -355,7 +355,7 @@ public class AddonVisibleCondition : ICondition, IDrawableCondition, IArgConditi
 public class PluginCondition : ICondition, IDrawableCondition, IArgCondition
 {
     public string ID => "p";
-    public string ConditionName => "Plugin Enabled";
+    public string ConditionName => "Plugin Enabled".Loc();
     public int DisplayPriority => 102;
     public bool Check(dynamic arg) => arg is string plugin && QoLBar.HasPlugin(plugin);
     public string GetTooltip(CndCfg cndCfg) => null;

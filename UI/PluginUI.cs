@@ -640,7 +640,7 @@ public class PluginUI : IDisposable
         }
         catch (Exception e)
         {
-            QoLBar.PrintError($"Failed to save: {e.Message}");
+            QoLBar.PrintError("Failed to save: ??".Loc(e.Message));
         }
     }
 
@@ -656,7 +656,7 @@ public class PluginUI : IDisposable
         }
         catch (Exception e)
         {
-            QoLBar.PrintError($"Failed to delete: {e.Message}");
+            QoLBar.PrintError("Failed to delete: ??".Loc(e.Message));
         }
     }
 

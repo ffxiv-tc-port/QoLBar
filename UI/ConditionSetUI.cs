@@ -83,7 +83,7 @@ public static class ConditionSetUI
             }
             catch (Exception e)
             {
-                QoLBar.PrintError($"Failed to import condition set from clipboard!\n{e.Message}");
+                QoLBar.PrintError("Failed to import condition set from clipboard!\n??".Loc(e.Message));
             }
         }
         ImGui.PopFont();
@@ -315,7 +315,7 @@ public static class ConditionSetUI
                 if (debugSteps != null && i < debugSteps.Count)
                 {
                     var setSuccess = debugSteps[i];
-                    operatorTooltip += $"\nSet (Up to this condition): {(setSuccess ? "True" : "False")}";
+                    operatorTooltip += "\nSet (Up to this condition): ??".Loc(setSuccess ? "True" : "False");
 
                     var setStatusCol = setSuccess ? 0x2000FF00u : 0x200000FFu;
                     ImGui.GetWindowDrawList().AddRectFilled(ImGui.GetItemRectMin(), ImGui.GetItemRectMax(), setStatusCol, ImGui.GetStyle().FrameRounding);
@@ -350,7 +350,7 @@ public static class ConditionSetUI
 
             var notTooltip = "NOT";
             var success = ConditionManager.CheckCondition(cndCfg.ID, cndCfg.Arg, cndCfg.Negate);
-            notTooltip += $"\nCondition: {(success ? "True" : "False")}";
+            notTooltip += "\nCondition: ??".Loc(success ? "True" : "False");
 
             var statusCol = success ? 0x2000FF00u : 0x200000FFu;
             ImGui.GetWindowDrawList().AddRectFilled(ImGui.GetItemRectMin(), ImGui.GetItemRectMax(), statusCol, ImGui.GetStyle().FrameRounding);

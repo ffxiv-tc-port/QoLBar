@@ -313,13 +313,13 @@ public static class Importing
                 switch (e)
                 {
                     case FormatException:
-                        QoLBar.PrintError("Failed to import from clipboard! Import string is invalid or incomplete.");
+                        QoLBar.PrintError("Failed to import from clipboard! Import string is invalid or incomplete.".Loc());
                         break;
                     case JsonSerializationException:
-                        QoLBar.PrintError("Failed to import from clipboard! Import string does not contain an importable object.");
+                        QoLBar.PrintError("Failed to import from clipboard! Import string does not contain an importable object.".Loc());
                         break;
                     default:
-                        QoLBar.PrintError($"Failed to import from clipboard!\n{e}");
+                        QoLBar.PrintError("Failed to import from clipboard!\n??".Loc(e));
                         break;
                 }
             }
@@ -384,13 +384,13 @@ public static class Importing
 
             if (printError)
             {
-                var msg = "This import contained {0} automatically removed, please enable \"{1}\" inside the \"Settings\" tab on the plugin config and then try importing again if you did not intend to do this.";
+                var msg = "This import contained ?? automatically removed, please enable \"??\" inside the \"Settings\" tab on the plugin config and then try importing again if you did not intend to do this.";
                 if (conditionRemoved)
-                    QoLBar.PrintEcho(string.Format(msg, "a condition set that was", "Allow importing conditions"));
+                    QoLBar.PrintEcho(msg.Loc("a condition set that was".Loc(), "Allow importing conditions".Loc()));
                 if (hotkeyRemoved)
-                    QoLBar.PrintEcho(string.Format(msg, "one or more hotkeys that were", "Allow importing hotkeys"));
+                    QoLBar.PrintEcho(msg.Loc("one or more hotkeys that were".Loc(), "Allow importing hotkeys".Loc()));
                 if (pieRemoved)
-                    QoLBar.PrintEcho("It appears that this bar was meant to be used as a pie. You should add a hotkey to it by right clicking on the bar and clicking the \"Pie Hotkey\" input box.");
+                    QoLBar.PrintEcho("It appears that this bar was meant to be used as a pie. You should add a hotkey to it by right clicking on the bar and clicking the \"Pie Hotkey\" input box.".Loc());
             }
         }
 

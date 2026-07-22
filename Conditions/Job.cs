@@ -5,12 +5,12 @@ namespace QoLBar.Conditions;
 public class JobCondition : ICondition, IDrawableCondition, IArgCondition, IConditionCategory
 {
     public string ID => "j";
-    public string ConditionName => "Job";
-    public string CategoryName => "Job";
+    public string ConditionName => "Job".Loc();
+    public string CategoryName => "Job".Loc();
     public int DisplayPriority => 0;
     public bool Check(dynamic arg) => DalamudApi.ClientState.LocalPlayer is { } player && player.ClassJob.RowId == (uint)arg;
     public string GetTooltip(CndCfg cndCfg) => null;
-    public string GetSelectableTooltip(CndCfg cndCfg) => "Advanced condition.";
+    public string GetSelectableTooltip(CndCfg cndCfg) => "Advanced condition.".Loc();
     public void Draw(CndCfg cndCfg)
     {
         var jobs = DalamudApi.DataManager.GetExcelSheet<Lumina.Excel.Sheets.ClassJob>();

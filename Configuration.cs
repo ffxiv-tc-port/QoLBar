@@ -229,7 +229,7 @@ public class Configuration : IPluginConfiguration
             else
             {
                 DalamudApi.LogError("Failed to save again :(");
-                QoLBar.PrintError("Error saving config, is something else writing to it?");
+                QoLBar.PrintError("Error saving config, is something else writing to it?".Loc());
             }
         }
     }

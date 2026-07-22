@@ -8,19 +8,19 @@ public class RoleCondition : ICondition, IDrawableCondition, IArgCondition, ICon
 {
     public static readonly Dictionary<int, string> roleDictionary = new()
     {
-        [1] = "Tank",
-        [2] = "Melee DPS",
-        [3] = "Ranged DPS",
-        [4] = "Healer",
-        [30] = "DoW",
-        [31] = "DoM",
-        [32] = "DoL",
-        [33] = "DoH"
+        [1] = "Tank".Loc(),
+        [2] = "Melee DPS".Loc(),
+        [3] = "Ranged DPS".Loc(),
+        [4] = "Healer".Loc(),
+        [30] = "DoW".Loc(),
+        [31] = "DoM".Loc(),
+        [32] = "DoL".Loc(),
+        [33] = "DoH".Loc()
     };
 
     public string ID => "r";
-    public string ConditionName => "Role";
-    public string CategoryName => "Role";
+    public string ConditionName => "Role".Loc();
+    public string CategoryName => "Role".Loc();
     public int DisplayPriority => 0;
     public bool Check(dynamic arg) => DalamudApi.ClientState.LocalPlayer is { } player
         && ((uint)arg < 30 ? player.ClassJob.ValueNullable?.Role : player.ClassJob.ValueNullable?.ClassJobCategory.RowId) == (uint)arg;
