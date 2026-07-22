@@ -57,15 +57,15 @@ public static class IconBrowserUI
             EndIconList();
 
             BeginIconList("Custom", iconSize);
-            ImGuiEx.SetItemTooltip("將圖片放入「%AppData%\\XIVLauncher\\pluginConfigs\\QoLBar\\icons」\n" +
-                                   "即可載入為可用的圖示，檔名須為「#.img」格式（# > 0）。\n" +
-                                   "例如「1.jpg」「2.png」「3.png」「732487.jpg」等等。");
+            ImGuiEx.SetItemTooltip(("Place images inside \"%AppData%\\XIVLauncher\\pluginConfigs\\QoLBar\\icons\"\n" +
+                                   "to load them as usable icons, the file names must be in the format \"#.img\" (# > 0).\n" +
+                                   "I.e. \"1.jpg\" \"2.png\" \"3.png\" \"732487.jpg\" and so on.").Loc());
             if (_tabExists)
             {
-                if (ImGui.Button("重新整理自訂圖示"))
+                if (ImGui.Button("Refresh Custom Icons".Loc()))
                     QoLBar.Plugin.AddUserIcons();
                 ImGui.SameLine();
-                if (ImGui.Button("開啟圖示資料夾"))
+                if (ImGui.Button("Open Icon Folder".Loc()))
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = QoLBar.Config.GetPluginIconPath(),

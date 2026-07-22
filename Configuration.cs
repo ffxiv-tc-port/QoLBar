@@ -355,25 +355,25 @@ public class Configuration : IPluginConfiguration
         var window = ImGuiHelpers.MainViewport.Size;
         ImGui.SetNextWindowPos(new System.Numerics.Vector2(window.X / 2, window.Y / 2), ImGuiCond.Appearing, new System.Numerics.Vector2(0.5f));
         ImGui.SetNextWindowSize(new System.Numerics.Vector2(550, 280) * ImGuiHelpers.GlobalScale);
-        ImGui.Begin("QoL Bar 已更新！", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
-        ImGui.TextWrapped("QoL Bar 新增了一項功能，分類現在也能像一般快捷項目一樣執行指令，" +
-                          "這可能會對在 1 月 4 日之前 就開始使用本插件的人造成問題，因為" +
-                          "指令設定原本被用來作為提示框。請確認你了解這個風險，" +
-                          "點擊分類時你可能會不小心傳送聊天訊息。此外，" +
-                          "如果你擔心的話，之後也可以刪除所有分類中的所有指令。選擇" +
-                          "「是」將會移除你設定檔中每個分類的每一條指令，如果你還沒開始" +
-                          "使用此功能，這樣做並沒有實際的壞處。選擇「否」將永久關閉此" +
-                          "彈出視窗，你也可以在選擇「是」之後，透過還原設定檔的版本備份來改變主意，" +
-                          "請注意，若你重新載入舊的設定檔，其中可能會再次包含" +
-                          "指令。");
+        ImGui.Begin("QoL Bar Updated!".Loc(), ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
+        ImGui.TextWrapped(("QoL Bar has a new feature where categories may now run commands like a normal shortcut, " +
+                          "this may cause problems for people who were using the plugin BEFORE JANUARY 4TH, due to " +
+                          "the command setting being used for tooltips. Please verify that you understand the risks " +
+                          "and that YOU MAY ACCIDENTALLY SEND CHAT MESSAGES WHEN CLICKING CATEGORIES. Additionally, " +
+                          "YOU MAY DELETE ALL COMMANDS FROM ALL CATEGORIES AFTERWARDS if you are worried. Selecting " +
+                          "YES will remove EVERY command from EVERY category in your config, note that this has no " +
+                          "real downside if you have not started to utilize this feature. Selecting NO will close this " +
+                          "popup permanently, you may also change your mind after selecting YES if you restore the " +
+                          "version backup from the config, please be aware that old configs will possibly contain " +
+                          "commands again if you do reload one of them.").Loc());
         ImGui.Spacing();
         ImGui.Spacing();
-        ImGui.Checkbox("我了解", ref updateWindowAgree);
+        ImGui.Checkbox("I UNDERSTAND".Loc(), ref updateWindowAgree);
         if (updateWindowAgree)
         {
             ImGui.Spacing();
             ImGui.Spacing();
-            if (ImGui.Button("是，刪除它們"))
+            if (ImGui.Button("YES, DELETE THEM".Loc()))
             {
                 static void DeleteRecursive(ShCfg sh)
                 {
@@ -396,7 +396,7 @@ public class Configuration : IPluginConfiguration
                 displayUpdateWindow = false;
             }
             ImGui.SameLine();
-            if (ImGui.Button("否，我沒問題"))
+            if (ImGui.Button("NO, I AM FINE".Loc()))
                 displayUpdateWindow = false;
         }
         ImGui.End();

@@ -108,25 +108,25 @@ public static class ConfigEditorUI
     public static void EditShortcutConfigBase(ShCfg sh, bool editing, bool hasIcon)
     {
         EditShortcutName(sh, editing);
-        ImGuiEx.SetItemTooltip("在名稱開頭或結尾加上 ::x（x 為數字）以使用圖示，例如「::2914」。\n" +
-                               "在名稱中任意位置使用 ## 可將其後的文字變成提示框，\n例如「名稱##這是提示框」。"
+        ImGuiEx.SetItemTooltip(("Start or end the name with ::x where x is a number to use icons, i.e. \"::2914\".\n" +
+                               "Use ## anywhere in the name to make the text afterwards into a tooltip,\ni.e. \"Name##This is a Tooltip\".").Loc()
                                + (hasIcon ?
-                                   "\n\n圖示可在「::」與其 ID 之間加上參數，例如「::f21」。\n" +
-                                   "\t' f ' - 套用快捷列框架。\n" +
-                                   "\t' n ' - 移除快捷列框架。\n" +
-                                   "\t' l ' - 使用低解析度圖示。\n" +
-                                   "\t' h ' - 若存在則使用高解析度圖示。\n" +
-                                   "\t' g ' - 將圖示轉為灰階。\n" +
-                                   "\t' r ' - 將圖示反轉。"
+                                   ("\n\nIcons accept arguments between \"::\" and their ID. I.e. \"::f21\".\n" +
+                                   "\t' f ' - Applies the hotbar frame.\n" +
+                                   "\t' n ' - Removes the hotbar frame.\n" +
+                                   "\t' l ' - Uses the low resolution icon.\n" +
+                                   "\t' h ' - Uses the high resolution icon if it exists.\n" +
+                                   "\t' g ' - Changes the icon to grayscale.\n" +
+                                   "\t' r ' - Reverses the icon.").Loc()
                                    : string.Empty));
 
         var _t = (int)sh.Type;
-        ImGui.TextUnformatted("類型");
-        ImGui.RadioButton("指令", ref _t, 0);
+        ImGui.TextUnformatted("Type".Loc());
+        ImGui.RadioButton("Command".Loc(), ref _t, 0);
         ImGui.SameLine(ImGui.GetWindowWidth() / 3);
-        ImGui.RadioButton("分類", ref _t, 1);
+        ImGui.RadioButton("Category".Loc(), ref _t, 1);
         ImGui.SameLine(ImGui.GetWindowWidth() / 3 * 2);
-        ImGui.RadioButton("間隔", ref _t, 2);
+        ImGui.RadioButton("Spacer".Loc(), ref _t, 2);
         if (_t != (int)sh.Type)
         {
             sh.Type = (ShortcutType)_t;
@@ -147,21 +147,21 @@ public static class ConfigEditorUI
                     QoLBar.Config.Save();
             }
             AddRightClickPrivateUsePopup(ref sh.Command);
-            ImGuiEx.SetItemTooltip("你可以使用右鍵新增特殊遊戲符號，此外，\n" +
-                                   "還有一些只能在快捷項目中使用的自訂指令。\n" +
-                                   "\t' //m0 ' - 執行個人巨集 #0（最多到 //m99）。\n" +
-                                   "\t' //m100 ' - 執行共用巨集 #0（最多到 //m199）。\n" +
-                                   "\t' //m ' - 開始或結束自訂巨集。之後的行\n" +
-                                   "會作為巨集執行而非快捷項目（可使用\n" +
-                                   "/wait、/macrolock 等），直到再次使用 //m 為止，最多 30 行。\n" +
-                                   "\t' //i <ID/名稱> ' - 使用道具，無法與 //m 一起使用。\n" +
-                                   "\t' // <註解> ' - 新增註解。");
+            ImGuiEx.SetItemTooltip(("You can use right click to add special game symbols, additionally,\n" +
+                                   "there are custom commands that only work from shortcuts.\n" +
+                                   "\t' //m0 ' - Executes individual macro #0 (up to //m99).\n" +
+                                   "\t' //m100 ' - Executes shared macro #0 (up to //m199).\n" +
+                                   "\t' //m ' - Begins or ends a custom macro. The following lines\n" +
+                                   "will execute as a macro instead of a shortcut (allowing for\n" +
+                                   "/wait, /macrolock, etc), until //m is used again, up to 30 lines.\n" +
+                                   "\t' //i <ID/Name> ' - Uses an item, cannot be used with //m.\n" +
+                                   "\t' // <Comment> ' - Adds a comment.").Loc());
         }
     }
 
     public static unsafe bool EditShortcutName(ShCfg sh, bool editing)
     {
-        var ret = ImGui.InputText("名稱", ref sh.Name, 256, ImGuiInputTextFlags.CallbackAlways, GetCursorPosCallback);
+        var ret = ImGui.InputText("Name".Loc(), ref sh.Name, 256, ImGuiInputTextFlags.CallbackAlways, GetCursorPosCallback);
         AddRightClickPrivateUsePopup(ref sh.Name);
 
         if (ret && editing)
@@ -173,20 +173,20 @@ public static class ConfigEditorUI
     public static bool EditShortcutMode(ShortcutUI sh)
     {
         var _m = (int)sh.Config.Mode;
-        ImGui.TextUnformatted("模式");
-        ImGuiEx.SetItemTooltip("改變按下時的行為。\n" +
-                               "注意：不建議用於包含子分類的分類。");
+        ImGui.TextUnformatted("Mode".Loc());
+        ImGuiEx.SetItemTooltip(("Changes the behavior when pressed.\n" +
+                               "Note: Not intended to be used with categories containing subcategories.").Loc());
 
-        ImGui.RadioButton("預設", ref _m, 0);
-        ImGuiEx.SetItemTooltip("預設行為，分類必須設為此模式才能編輯其快捷項目！");
+        ImGui.RadioButton("Default".Loc(), ref _m, 0);
+        ImGuiEx.SetItemTooltip("Default behavior, categories must be set to this to edit their shortcuts!".Loc());
 
         ImGui.SameLine(ImGui.GetWindowWidth() / 3);
-        ImGui.RadioButton("遞增", ref _m, 1);
-        ImGuiEx.SetItemTooltip("每次按下時依序執行每一行／快捷項目。");
+        ImGui.RadioButton("Incremental".Loc(), ref _m, 1);
+        ImGuiEx.SetItemTooltip("Executes each line/shortcut in order over multiple presses.".Loc());
 
         ImGui.SameLine(ImGui.GetWindowWidth() / 3 * 2);
-        ImGui.RadioButton("隨機", ref _m, 2);
-        ImGuiEx.SetItemTooltip("按下時隨機執行一行／快捷項目。");
+        ImGui.RadioButton("Random".Loc(), ref _m, 2);
+        ImGuiEx.SetItemTooltip("Executes a random line/shortcut when pressed.".Loc());
 
         if (_m != (int)sh.Config.Mode)
         {
@@ -214,7 +214,7 @@ public static class ConfigEditorUI
     {
         var color = ImGui.ColorConvertU32ToFloat4(sh.Config.Color);
         color.W += sh.Config.ColorAnimation / 255f; // Temporary
-        if (ImGui.ColorEdit4("顏色", ref color, ImGuiColorEditFlags.NoDragDrop | ImGuiColorEditFlags.AlphaPreviewHalf))
+        if (ImGui.ColorEdit4("Color".Loc(), ref color, ImGuiColorEditFlags.NoDragDrop | ImGuiColorEditFlags.AlphaPreviewHalf))
         {
             sh.Config.Color = ImGui.ColorConvertFloat4ToU32(color);
             sh.Config.ColorAnimation = Math.Max((int)Math.Round(color.W * 255) - 255, 0);
@@ -229,50 +229,50 @@ public static class ConfigEditorUI
 
     public static void EditShortcutCategoryOptions(ShortcutUI sh)
     {
-        if (ImGui.SliderInt("按鈕寬度", ref sh.Config.CategoryWidth, 0, 200))
+        if (ImGui.SliderInt("Button Width".Loc(), ref sh.Config.CategoryWidth, 0, 200))
             QoLBar.Config.Save();
-        ImGuiEx.SetItemTooltip("設為 0 以使用文字寬度。");
+        ImGuiEx.SetItemTooltip("Set to 0 to use text width.".Loc());
 
-        if (ImGui.SliderInt("欄數", ref sh.Config.CategoryColumns, 0, 12))
+        if (ImGui.SliderInt("Columns".Loc(), ref sh.Config.CategoryColumns, 0, 12))
             QoLBar.Config.Save();
-        ImGuiEx.SetItemTooltip("每行快捷項目的數量，超過後會另起一行。\n" +
-                               "設為 0 表示不限制。");
+        ImGuiEx.SetItemTooltip(("Number of shortcuts in each row before starting another.\n" +
+                               "Set to 0 to specify infinite.").Loc());
 
-        if (ImGui.DragFloat("縮放", ref sh.Config.CategoryScale, 0.002f, 0.7f, 2f, "%.2f"))
+        if (ImGui.DragFloat("Scale".Loc(), ref sh.Config.CategoryScale, 0.002f, 0.7f, 2f, "%.2f"))
             QoLBar.Config.Save();
 
-        if (ImGui.DragFloat("字型縮放", ref sh.Config.CategoryFontScale, 0.0018f, 0.5f, 1.0f, "%.2f"))
+        if (ImGui.DragFloat("Font Scale".Loc(), ref sh.Config.CategoryFontScale, 0.0018f, 0.5f, 1.0f, "%.2f"))
             QoLBar.Config.Save();
 
         var spacing = new Vector2(sh.Config.CategorySpacing[0], sh.Config.CategorySpacing[1]);
-        if (ImGui.DragFloat2("間距", ref spacing, 0.12f, 0, 32, "%.f"))
+        if (ImGui.DragFloat2("Spacing".Loc(), ref spacing, 0.12f, 0, 32, "%.f"))
         {
             sh.Config.CategorySpacing[0] = (int)spacing.X;
             sh.Config.CategorySpacing[1] = (int)spacing.Y;
             QoLBar.Config.Save();
         }
 
-        if (ImGui.Checkbox("滑鼠移入時開啟", ref sh.Config.CategoryOnHover))
+        if (ImGui.Checkbox("Open on Hover".Loc(), ref sh.Config.CategoryOnHover))
             QoLBar.Config.Save();
         ImGui.SameLine(ImGui.GetWindowWidth() / 2);
-        if (ImGui.Checkbox("移出時關閉", ref sh.Config.CategoryHoverClose))
+        if (ImGui.Checkbox("Close When Not Hovered".Loc(), ref sh.Config.CategoryHoverClose))
             QoLBar.Config.Save();
 
-        if (ImGui.Checkbox("選取後保持開啟", ref sh.Config.CategoryStaysOpen))
+        if (ImGui.Checkbox("Stay Open on Selection".Loc(), ref sh.Config.CategoryStaysOpen))
             QoLBar.Config.Save();
-        ImGuiEx.SetItemTooltip("按下分類內的快捷項目時保持分類開啟。\n若快捷項目與其他插件互動，可能無法正常運作。");
+        ImGuiEx.SetItemTooltip("Keeps the category open when pressing shortcuts within it.\nMay not work if the shortcut interacts with other plugins.".Loc());
         ImGui.SameLine(ImGui.GetWindowWidth() / 2);
-        if (ImGui.Checkbox("無背景", ref sh.Config.CategoryNoBackground))
+        if (ImGui.Checkbox("No Background".Loc(), ref sh.Config.CategoryNoBackground))
             QoLBar.Config.Save();
     }
 
     public static void EditShortcutIconOptions(ShortcutUI sh)
     {
-        if (ImGui.DragFloat("縮放", ref sh.Config.IconZoom, 0.005f, 1.0f, 5.0f, "%.2f"))
+        if (ImGui.DragFloat("Zoom".Loc(), ref sh.Config.IconZoom, 0.005f, 1.0f, 5.0f, "%.2f"))
             QoLBar.Config.Save();
 
         var offset = new Vector2(sh.Config.IconOffset[0], sh.Config.IconOffset[1]);
-        if (ImGui.DragFloat2("偏移", ref offset, 0.0005f, -0.5f, 0.5f, "%.3f"))
+        if (ImGui.DragFloat2("Offset".Loc(), ref offset, 0.0005f, -0.5f, 0.5f, "%.3f"))
         {
             sh.Config.IconOffset[0] = offset.X;
             sh.Config.IconOffset[1] = offset.Y;
@@ -280,7 +280,7 @@ public static class ConfigEditorUI
         }
 
         var r = (float)(sh.Config.IconRotation * 180 / Math.PI) % 360;
-        if (ImGui.DragFloat("旋轉", ref r, 0.2f, -360, 360, "%.f"))
+        if (ImGui.DragFloat("Rotation".Loc(), ref r, 0.2f, -360, 360, "%.f"))
         {
             if (r < 0)
                 r += 360;
@@ -290,11 +290,11 @@ public static class ConfigEditorUI
 
         static string formatName(Lumina.Excel.Sheets.Action a) => a.RowId switch
         {
-            0 => "無",
-            847 => "[847] 物品",
+            0 => "None".Loc(),
+            847 => "[847] " + "Item".Loc(),
             _ => $"[{a.RowId}] {a.Name}"
         };
-        if (ImGuiEx.ExcelSheetCombo<Lumina.Excel.Sheets.Action>("冷卻技能 ID", out var action, s => s.GetRowOrDefault(sh.Config.CooldownAction) is { } a ? formatName(a) : sh.Config.CooldownAction.ToString(),
+        if (ImGuiEx.ExcelSheetCombo<Lumina.Excel.Sheets.Action>("Cooldown Action ID".Loc(), out var action, s => s.GetRowOrDefault(sh.Config.CooldownAction) is { } a ? formatName(a) : sh.Config.CooldownAction.ToString(),
             ImGuiComboFlags.None, (a, s) => (a.RowId == 0 || a is { CooldownGroup: > 0, ClassJobCategory.RowId: > 0 }) && formatName(a).Contains(s, StringComparison.CurrentCultureIgnoreCase),
             a => ImGui.Selectable(formatName(a), sh.Config.CooldownAction == a.RowId)))
         {
@@ -309,19 +309,19 @@ public static class ConfigEditorUI
         if (sh.Config.CooldownAction > 0)
         {
             var save = ImGui.CheckboxFlags("##CooldownNumber", ref sh.Config.CooldownStyle, (int)ImGuiEx.IconSettings.CooldownStyle.Number);
-            ImGuiEx.SetItemTooltip("數字");
+            ImGuiEx.SetItemTooltip("Number".Loc());
             ImGui.SameLine();
             save |= ImGui.CheckboxFlags("##CooldownDisable", ref sh.Config.CooldownStyle, (int)ImGuiEx.IconSettings.CooldownStyle.Disable);
-            ImGuiEx.SetItemTooltip("變暗（強制套用圖示框架）");
+            ImGuiEx.SetItemTooltip("Darken (Forces the icon frame)".Loc());
             ImGui.SameLine();
             save |= ImGui.CheckboxFlags("##CooldownDefault", ref sh.Config.CooldownStyle, (int)ImGuiEx.IconSettings.CooldownStyle.Cooldown);
-            ImGuiEx.SetItemTooltip("預設旋轉圈（強制套用圖示框架）");
+            ImGuiEx.SetItemTooltip("Default Spinner (Forces the icon frame)".Loc());
             ImGui.SameLine();
             save |= ImGui.CheckboxFlags("##CooldownGCD", ref sh.Config.CooldownStyle, (int)ImGuiEx.IconSettings.CooldownStyle.GCDCooldown);
-            ImGuiEx.SetItemTooltip("橘色 GCD 旋轉圈");
+            ImGuiEx.SetItemTooltip("Orange GCD Spinner".Loc());
             ImGui.SameLine();
-            save |= ImGui.CheckboxFlags("冷卻樣式旗標##CooldownCharge", ref sh.Config.CooldownStyle, (int)ImGuiEx.IconSettings.CooldownStyle.ChargeCooldown);
-            ImGuiEx.SetItemTooltip("充能旋轉圈");
+            save |= ImGui.CheckboxFlags("Cooldown Style Flags".Loc() + "##CooldownCharge", ref sh.Config.CooldownStyle, (int)ImGuiEx.IconSettings.CooldownStyle.ChargeCooldown);
+            ImGuiEx.SetItemTooltip("Charge Spinner".Loc());
             if (save)
                 QoLBar.Config.Save();
         }
@@ -329,13 +329,13 @@ public static class ConfigEditorUI
 
     public static void EditBarGeneralOptions(BarUI bar)
     {
-        if (ImGui.InputText("名稱", ref bar.Config.Name, 256))
+        if (ImGui.InputText("Name".Loc(), ref bar.Config.Name, 256))
             QoLBar.Config.Save();
 
         var _dock = (int)bar.Config.DockSide;
-        if (ImGui.Combo("邊緣", ref _dock, (ImGui.GetIO().ConfigFlags & ImGuiConfigFlags.ViewportsEnable) != 0
-                ? "上\0右\0下\0左\0未固定"
-                : "上\0右\0下\0左"))
+        if (ImGui.Combo("Side".Loc(), ref _dock, (ImGui.GetIO().ConfigFlags & ImGuiConfigFlags.ViewportsEnable) != 0
+                ? "Top".Loc() + "\0" + "Right".Loc() + "\0" + "Bottom".Loc() + "\0" + "Left".Loc() + "\0" + "Undocked".Loc()
+                : "Top".Loc() + "\0" + "Right".Loc() + "\0" + "Bottom".Loc() + "\0" + "Left".Loc()))
         {
             bar.Config.DockSide = (BarDock)_dock;
             if (bar.Config.DockSide == BarDock.Undocked && bar.Config.Visibility == BarVisibility.Slide)
@@ -351,12 +351,12 @@ public static class ConfigEditorUI
         {
             var topbottom = bar.Config.DockSide == BarDock.Top || bar.Config.DockSide == BarDock.Bottom;
             var _align = (int)bar.Config.Alignment;
-            ImGui.Text("對齊");
-            ImGui.RadioButton(topbottom ? "左" : "上", ref _align, 0);
+            ImGui.Text("Alignment".Loc());
+            ImGui.RadioButton(topbottom ? "Left".Loc() : "Top".Loc(), ref _align, 0);
             ImGui.SameLine(ImGui.GetWindowWidth() / 3);
-            ImGui.RadioButton("置中", ref _align, 1);
+            ImGui.RadioButton("Center".Loc(), ref _align, 1);
             ImGui.SameLine(ImGui.GetWindowWidth() / 3 * 2);
-            ImGui.RadioButton(topbottom ? "右" : "下", ref _align, 2);
+            ImGui.RadioButton(topbottom ? "Right".Loc() : "Bottom".Loc(), ref _align, 2);
             if (_align != (int)bar.Config.Alignment)
             {
                 bar.Config.Alignment = (BarAlign)_align;
@@ -365,28 +365,28 @@ public static class ConfigEditorUI
             }
 
             var _visibility = (int)bar.Config.Visibility;
-            ImGui.Text("動畫");
-            ImGui.RadioButton("滑動", ref _visibility, 0);
+            ImGui.Text("Animation".Loc());
+            ImGui.RadioButton("Slide".Loc(), ref _visibility, 0);
             ImGui.SameLine(ImGui.GetWindowWidth() / 3);
-            ImGui.RadioButton("即時", ref _visibility, 1);
+            ImGui.RadioButton("Immediate".Loc(), ref _visibility, 1);
             ImGui.SameLine(ImGui.GetWindowWidth() / 3 * 2);
-            ImGui.RadioButton("永遠顯示", ref _visibility, 2);
+            ImGui.RadioButton("Always Visible".Loc(), ref _visibility, 2);
             if (_visibility != (int)bar.Config.Visibility)
             {
                 bar.Config.Visibility = (BarVisibility)_visibility;
                 QoLBar.Config.Save();
             }
 
-            if ((bar.Config.Visibility != BarVisibility.Always) && ImGui.DragFloat("顯示區域縮放", ref bar.Config.RevealAreaScale, 0.01f, 0.0f, 1.0f, "%.2f"))
+            if ((bar.Config.Visibility != BarVisibility.Always) && ImGui.DragFloat("Reveal Area Scale".Loc(), ref bar.Config.RevealAreaScale, 0.01f, 0.0f, 1.0f, "%.2f"))
                 QoLBar.Config.Save();
         }
         else
         {
             var _visibility = (int)bar.Config.Visibility;
-            ImGui.Text("動畫");
-            ImGui.RadioButton("即時", ref _visibility, 1);
+            ImGui.Text("Animation".Loc());
+            ImGui.RadioButton("Immediate".Loc(), ref _visibility, 1);
             ImGui.SameLine(ImGui.GetWindowWidth() / 2);
-            ImGui.RadioButton("永遠顯示", ref _visibility, 2);
+            ImGui.RadioButton("Always Visible".Loc(), ref _visibility, 2);
             if (_visibility != (int)bar.Config.Visibility)
             {
                 bar.Config.Visibility = (BarVisibility)_visibility;
@@ -396,27 +396,27 @@ public static class ConfigEditorUI
 
         Keybind.KeybindInput(bar.Config);
 
-        if (ImGui.Checkbox("編輯模式", ref bar.Config.Editing))
+        if (ImGui.Checkbox("Edit Mode".Loc(), ref bar.Config.Editing))
         {
             if (!bar.Config.Editing)
-                Game.ExecuteCommand("/echo <se> 你可以右鍵點擊快捷列本身（黑色背景處）以重新開啟此設定選單！也可以使用 shift + 右鍵來新增快捷項目。");
+                Game.ExecuteCommand("/echo <se> " + "You can right click on the bar itself (the black background) to reopen this settings menu! You can also use shift + right click to add a new shortcut as well.".Loc());
             QoLBar.Config.Save();
         }
         ImGui.SameLine(ImGui.GetWindowWidth() / 2);
-        if (ImGui.Checkbox("點擊穿透", ref bar.Config.ClickThrough))
+        if (ImGui.Checkbox("Click Through".Loc(), ref bar.Config.ClickThrough))
             QoLBar.Config.Save();
-        ImGuiEx.SetItemTooltip("警告：這將使你無法與此快捷列互動。\n" +
-                               "若要再次編輯設定，你需要使用一般設定中\n" +
-                               "快捷列名稱旁邊的「O」按鈕。");
+        ImGuiEx.SetItemTooltip(("WARNING: This will prevent you from interacting with this bar.\n" +
+                               "To edit the settings again, you will need to use the \"O\" button\n" +
+                               "next to the bar's name inside the general config.").Loc());
 
-        if (ImGui.Checkbox("鎖定位置", ref bar.Config.LockedPosition))
+        if (ImGui.Checkbox("Lock Position".Loc(), ref bar.Config.LockedPosition))
             QoLBar.Config.Save();
         if (bar.IsDocked && bar.Config.Visibility != BarVisibility.Always)
         {
             ImGui.SameLine(ImGui.GetWindowWidth() / 2);
-            if (ImGui.Checkbox("提示", ref bar.Config.Hint))
+            if (ImGui.Checkbox("Hint".Loc(), ref bar.Config.Hint))
                 QoLBar.Config.Save();
-            ImGuiEx.SetItemTooltip("防止快捷列休眠，會增加 CPU 負載。");
+            ImGuiEx.SetItemTooltip("Will prevent the bar from sleeping, increasing CPU load.".Loc());
         }
 
         if (!bar.Config.LockedPosition)
@@ -424,7 +424,7 @@ public static class ConfigEditorUI
             var pos = bar.VectorPosition;
             var area = bar.UsableArea;
             var max = (area.X > area.Y) ? area.X : area.Y;
-            if (ImGui.DragFloat2(bar.IsDocked ? "偏移" : "位置", ref pos, 1, -max, max, "%.f"))
+            if (ImGui.DragFloat2(bar.IsDocked ? "Offset".Loc() : "Position".Loc(), ref pos, 1, -max, max, "%.f"))
             {
                 bar.Config.Position[0] = Math.Min(pos.X / area.X, 1);
                 bar.Config.Position[1] = Math.Min(pos.Y / area.Y, 1);
@@ -439,33 +439,33 @@ public static class ConfigEditorUI
 
     public static void EditBarStyleOptions(BarUI bar)
     {
-        if (ImGui.SliderInt("按鈕寬度", ref bar.Config.ButtonWidth, 0, 200))
+        if (ImGui.SliderInt("Button Width".Loc(), ref bar.Config.ButtonWidth, 0, 200))
             QoLBar.Config.Save();
-        ImGuiEx.SetItemTooltip("設為 0 以使用文字寬度。");
+        ImGuiEx.SetItemTooltip("Set to 0 to use text width.".Loc());
 
-        if (ImGui.SliderInt("欄數", ref bar.Config.Columns, 0, 12))
+        if (ImGui.SliderInt("Columns".Loc(), ref bar.Config.Columns, 0, 12))
             QoLBar.Config.Save();
-        ImGuiEx.SetItemTooltip("每行快捷項目的數量，超過後會另起一行。\n" +
-                               "設為 0 表示不限制。");
+        ImGuiEx.SetItemTooltip(("Number of shortcuts in each row before starting another.\n" +
+                               "Set to 0 to specify infinite.").Loc());
 
-        if (ImGui.DragFloat("縮放", ref bar.Config.Scale, 0.002f, 0.7f, 2.0f, "%.2f"))
+        if (ImGui.DragFloat("Scale".Loc(), ref bar.Config.Scale, 0.002f, 0.7f, 2.0f, "%.2f"))
             QoLBar.Config.Save();
 
-        if (ImGui.DragFloat("字型縮放", ref bar.Config.FontScale, 0.0018f, 0.5f, 1.0f, "%.2f"))
+        if (ImGui.DragFloat("Font Scale".Loc(), ref bar.Config.FontScale, 0.0018f, 0.5f, 1.0f, "%.2f"))
             QoLBar.Config.Save();
 
         var spacing = new Vector2(bar.Config.Spacing[0], bar.Config.Spacing[1]);
-        if (ImGui.DragFloat2("間距", ref spacing, 0.12f, 0, 32, "%.f"))
+        if (ImGui.DragFloat2("Spacing".Loc(), ref spacing, 0.12f, 0, 32, "%.f"))
         {
             bar.Config.Spacing[0] = (int)spacing.X;
             bar.Config.Spacing[1] = (int)spacing.Y;
             QoLBar.Config.Save();
         }
 
-        if (ImGui.Checkbox("無背景", ref bar.Config.NoBackground))
+        if (ImGui.Checkbox("No Background".Loc(), ref bar.Config.NoBackground))
             QoLBar.Config.Save();
     }
 
-    public static void DisplayRightClickDeleteMessage(string text = "右鍵點擊以刪除！") =>
-        DalamudApi.ShowNotification($"\t\t\t{text}\t\t\t\n\n", NotificationType.Info);
+    public static void DisplayRightClickDeleteMessage(string text = "Right click to delete!") =>
+        DalamudApi.ShowNotification($"\t\t\t{text.Loc()}\t\t\t\n\n", NotificationType.Info);
 }

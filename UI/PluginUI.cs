@@ -78,37 +78,37 @@ public class PluginUI : IDisposable
         if (!ImGuiEx.SetBoolOnGameFocus(ref _displayOutsideMain)) return;
 
         ImGui.SetNextWindowSizeConstraints(new Vector2(610, 650) * ImGuiHelpers.GlobalScale, ImGuiHelpers.MainViewport.Size);
-        ImGui.Begin("QoL Bar 設定", ref configOpen);
+        ImGui.Begin("QoL Bar Configuration".Loc(), ref configOpen);
 
         ImGuiEx.ShouldDrawInViewport(out _displayOutsideMain);
 
         if (ImGui.BeginTabBar("Config Tabs"))
         {
-            if (ImGui.BeginTabItem("快捷列管理"))
+            if (ImGui.BeginTabItem("Bar Manager".Loc()))
             {
                 DrawBarManager();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("條件集"))
+            if (ImGui.BeginTabItem("Condition Sets".Loc()))
             {
                 ConditionSetUI.Draw();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("備份"))
+            if (ImGui.BeginTabItem("Backups".Loc()))
             {
                 DrawBackupManager();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("設定"))
+            if (ImGui.BeginTabItem("Settings".Loc()))
             {
                 DrawSettingsMenu();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("除錯"))
+            if (ImGui.BeginTabItem("Debug".Loc()))
             {
                 DrawDebugMenu();
                 ImGui.EndTabItem();
@@ -149,18 +149,18 @@ public class PluginUI : IDisposable
 
             if (ImGui.Button("O", letterButtonSize))
                 ImGui.OpenPopup($"BarConfig##{i}");
-            ImGuiEx.SetItemTooltip("選項");
+            ImGuiEx.SetItemTooltip("Options".Loc());
             bars[i].DrawConfig();
             ImGui.SameLine();
             ImGui.SetNextItemWidth(27 * ImGuiHelpers.GlobalScale);
             if (ImGui.Button(bar.Hidden ? "R" : "H", letterButtonSize))
                 bars[i].IsHidden = !bars[i].IsHidden;
-            ImGuiEx.SetItemTooltip(bar.Hidden ? "顯示" : "隱藏");
+            ImGuiEx.SetItemTooltip(bar.Hidden ? "Reveal".Loc() : "Hide".Loc());
             ImGui.SameLine();
-            var preview = ((bar.ConditionSet >= 0) && (bar.ConditionSet < QoLBar.Config.CndSetCfgs.Count)) ? $"[{bar.ConditionSet + 1}] {QoLBar.Config.CndSetCfgs[bar.ConditionSet].Name}" : "條件集";
+            var preview = ((bar.ConditionSet >= 0) && (bar.ConditionSet < QoLBar.Config.CndSetCfgs.Count)) ? $"[{bar.ConditionSet + 1}] {QoLBar.Config.CndSetCfgs[bar.ConditionSet].Name}" : "Condition Set".Loc();
             if (ImGui.BeginCombo("##Condition", preview))
             {
-                if (ImGui.Selectable("無", bar.ConditionSet == -1))
+                if (ImGui.Selectable("None".Loc(), bar.ConditionSet == -1))
                 {
                     bar.ConditionSet = -1;
                     QoLBar.Config.Save();
@@ -175,9 +175,9 @@ public class PluginUI : IDisposable
                 }
                 ImGui.EndCombo();
             }
-            ImGuiEx.SetItemTooltip("為此快捷列套用條件集，用以控制其顯示的時機。\n" +
-                                   "適合用來建立會同時顯示的多個快捷列群組。\n" +
-                                   "你可以在此視窗上方的「條件集」分頁中建立這些條件集。");
+            ImGuiEx.SetItemTooltip(("Applies a condition set to the bar that will control when it is shown.\n" +
+                                   "Useful for making groups of bars that all display at the same time.\n" +
+                                   "You can make these on the \"Condition Sets\" tab at the top of this window.").Loc());
 
             ImGui.NextColumn();
 
@@ -187,12 +187,12 @@ public class PluginUI : IDisposable
             if (ImGui.Button("↓"))
                 ShiftBar(i, true);
             ImGui.SameLine();
-            if (ImGui.Button("匯出"))
+            if (ImGui.Button("Export".Loc()))
                 ImGui.SetClipboardText(ExportBar(i, false));
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("以精簡設定匯出到剪貼簿（可能隨更新而改變）。\n" +
-                                 "右鍵點擊可匯出所有設定（字串較長，不會改變）。");
+                ImGui.SetTooltip(("Export to clipboard with minimal settings (May change with updates).\n" +
+                                 "Right click to export with every setting (Longer string, doesn't change).").Loc());
 
                 if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
                     ImGui.SetClipboardText(ExportBar(i, true));
@@ -201,12 +201,12 @@ public class PluginUI : IDisposable
             if (bars.Count > 1)
             {
                 ImGui.SameLine();
-                if (ImGui.Button(QoLBar.Config.ExportOnDelete ? "剪下" : "刪除"))
+                if (ImGui.Button(QoLBar.Config.ExportOnDelete ? "Cut".Loc() : "Delete".Loc()))
                     ConfigEditorUI.DisplayRightClickDeleteMessage();
                 if (ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip($"右鍵點擊此按鈕以刪除快捷列 #{i + 1}！" +
-                                     (QoLBar.Config.ExportOnDelete ? "\n此快捷列將會先匯出到剪貼簿。" : ""));
+                    ImGui.SetTooltip("Right click this button to delete bar #??!".Loc(i + 1) +
+                                     (QoLBar.Config.ExportOnDelete ? "\nThe bar will be exported to clipboard first.".Loc() : ""));
 
                     if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
                     {
@@ -228,12 +228,12 @@ public class PluginUI : IDisposable
             AddBar(new BarCfg { Editing = true });
         ImGui.NextColumn();
         ImGui.NextColumn();
-        if (ImGui.Button("匯入", textsize))
+        if (ImGui.Button("Import".Loc(), textsize))
             ImportBar(ImGuiEx.TryGetClipboardText());
         if (ImGui.IsItemHovered())
         {
-            ImGui.SetTooltip("從剪貼簿匯入一個快捷列，或將單一快捷匯入為新的快捷列。\n" +
-                             "右鍵點擊將會新增一個展示各種功能的示範快捷列。");
+            ImGui.SetTooltip(("Import a bar from the clipboard, or import a single shortcut as a new bar.\n" +
+                             "Right click will add a demo bar that showcases various features.").Loc());
 
             if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
                 AddDemoBar();
@@ -247,51 +247,51 @@ public class PluginUI : IDisposable
         var halfWidth = ImGui.GetWindowWidth() / 2;
         var thirdWidth = ImGui.GetWindowWidth() / 3;
         var quarterWidth = ImGui.GetWindowWidth() / 4;
-        if (ImGui.Checkbox("刪除時匯出", ref QoLBar.Config.ExportOnDelete))
+        if (ImGui.Checkbox("Export on Delete".Loc(), ref QoLBar.Config.ExportOnDelete))
             QoLBar.Config.Save();
         ImGui.SameLine(halfWidth);
-        if (ImGui.Checkbox("永遠顯示快捷列", ref QoLBar.Config.AlwaysDisplayBars))
+        if (ImGui.Checkbox("Always Display Bars".Loc(), ref QoLBar.Config.AlwaysDisplayBars))
             QoLBar.Config.Save();
-        ImGuiEx.SetItemTooltip("即使登出後，快捷列仍會保持顯示。");
+        ImGuiEx.SetItemTooltip("Bars will remain visible even when logged out.".Loc());
 
-        if (ImGui.Checkbox("圖示套用快捷列框架", ref QoLBar.Config.UseIconFrame))
+        if (ImGui.Checkbox("Use Hotbar Frames on Icons".Loc(), ref QoLBar.Config.UseIconFrame))
             QoLBar.Config.Save();
         ImGui.SameLine(halfWidth);
         var _ = QoLBar.Config.UseHRIcons;
-        if (ImGui.Checkbox("使用高解析度圖示", ref _))
+        if (ImGui.Checkbox("Use HR Icons".Loc(), ref _))
         {
             QoLBar.Config.UseHRIcons = _;
             QoLBar.Config.Save();
         }
-        ImGuiEx.SetItemTooltip("改為載入高解析度圖示。請注意，若開啟圖示瀏覽器的「劇透」分頁，\n" +
-                               "在關閉前最多會佔用 5GB 的記憶體！");
+        ImGuiEx.SetItemTooltip(("Loads the high resolution icons instead. Be aware that the Icon Browser will use\n" +
+                               "up to 5GB of memory until closed if you open the \"Spoilers\" tabs!").Loc());
 
-        if (ImGui.Checkbox("停用條件快取", ref QoLBar.Config.NoConditionCache))
+        if (ImGui.Checkbox("Disable Condition Caching".Loc(), ref QoLBar.Config.NoConditionCache))
             QoLBar.Config.Save();
-        ImGuiEx.SetItemTooltip("停用檢查條件之間的 100 毫秒延遲，會增加 CPU 負載。");
+        ImGuiEx.SetItemTooltip("Disables the 100ms delay between checking conditions, increasing CPU load.".Loc());
         ImGui.SameLine(halfWidth);
         ImGui.SetNextItemWidth(quarterWidth);
-        if (ImGui.InputFloat("快捷列字型大小", ref QoLBar.Config.FontSize, 1, 8, "%.f", ImGuiInputTextFlags.EnterReturnsTrue))
+        if (ImGui.InputFloat("Bar Font Size".Loc(), ref QoLBar.Config.FontSize, 1, 8, "%.f", ImGuiInputTextFlags.EnterReturnsTrue))
         {
             QoLBar.Config.FontSize = Math.Min(Math.Max(QoLBar.Config.FontSize, 1), QoLBar.MaxFontSize);
             QoLBar.Config.Save();
             QoLBar.SetupFont();
         }
-        ImGuiEx.SetItemTooltip($"預設值：{QoLBar.DefaultFontSize}");
+        ImGuiEx.SetItemTooltip("Default: ??".Loc(QoLBar.DefaultFontSize));
 
         ImGui.SetNextItemWidth(quarterWidth);
-        if (ImGui.InputInt("備份計時器", ref QoLBar.Config.BackupTimer))
+        if (ImGui.InputInt("Backup Timer".Loc(), ref QoLBar.Config.BackupTimer))
             QoLBar.Config.Save();
-        ImGuiEx.SetItemTooltip("距離上次儲存多少分鐘後執行備份。設為 0 則停用。");
+        ImGuiEx.SetItemTooltip("Number of minutes since the last save to perform a backup. Set to 0 to disable.".Loc());
 
         ImGui.Spacing();
         ImGui.Spacing();
-        ImGui.TextUnformatted("圓餅選單設定");
+        ImGui.TextUnformatted("Pie Settings".Loc());
         ImGui.SetNextItemWidth(quarterWidth);
-        if (ImGui.DragInt("不透明度", ref QoLBar.Config.PieOpacity, 0.2f, 0, 255))
+        if (ImGui.DragInt("Opacity".Loc(), ref QoLBar.Config.PieOpacity, 0.2f, 0, 255))
             QoLBar.Config.Save();
         ImGui.SameLine(halfWidth);
-        if (ImGui.Checkbox("交替角度", ref QoLBar.Config.PieAlternateAngle))
+        if (ImGui.Checkbox("Alternate Angle".Loc(), ref QoLBar.Config.PieAlternateAngle))
             QoLBar.Config.Save();
         /*ImGui.SetNextItemWidth(quarterWidth);
         var offset = (float)(QoLBar.Config.PieAngleOffset / Math.PI * 180);
@@ -302,7 +302,7 @@ public class PluginUI : IDisposable
             QoLBar.Config.Save();
         }*/
 
-        if (ImGui.Checkbox("在中央顯示", ref QoLBar.Config.PiesAlwaysCenter))
+        if (ImGui.Checkbox("Appear in Center".Loc(), ref QoLBar.Config.PiesAlwaysCenter))
         {
             if (!QoLBar.Config.PiesAlwaysCenter)
             {
@@ -313,7 +313,7 @@ public class PluginUI : IDisposable
             QoLBar.Config.Save();
         }
         ImGui.SameLine(halfWidth);
-        if (QoLBar.Config.PiesAlwaysCenter && ImGui.Checkbox("開啟時將滑鼠置中", ref QoLBar.Config.PiesMoveMouse))
+        if (QoLBar.Config.PiesAlwaysCenter && ImGui.Checkbox("Center Mouse on Open".Loc(), ref QoLBar.Config.PiesMoveMouse))
         {
             if (!QoLBar.Config.PiesMoveMouse)
             {
@@ -323,34 +323,34 @@ public class PluginUI : IDisposable
             QoLBar.Config.Save();
         }
 
-        if (QoLBar.Config.PiesMoveMouse && ImGui.Checkbox("關閉時還原滑鼠位置", ref QoLBar.Config.PiesReturnMouse))
+        if (QoLBar.Config.PiesMoveMouse && ImGui.Checkbox("Return Mouse on Close".Loc(), ref QoLBar.Config.PiesReturnMouse))
         {
             if (!QoLBar.Config.PiesReturnMouse)
                 QoLBar.Config.PiesReadjustMouse = false;
             QoLBar.Config.Save();
         }
         ImGui.SameLine(halfWidth);
-        if (QoLBar.Config.PiesReturnMouse && ImGui.Checkbox("修正舊的滑鼠位置", ref QoLBar.Config.PiesReadjustMouse))
+        if (QoLBar.Config.PiesReturnMouse && ImGui.Checkbox("Recorrect Old Mouse Position".Loc(), ref QoLBar.Config.PiesReadjustMouse))
             QoLBar.Config.Save();
         ImGui.SameLine();
 
         ImGui.Spacing();
         ImGui.Spacing();
         ImGui.Spacing();
-        ImGui.TextUnformatted("選擇退出 Dalamud 的隱藏介面設定");
-        if (ImGui.Checkbox("遊戲介面切換時", ref QoLBar.Config.OptOutGameUIOffHide))
+        ImGui.TextUnformatted("Opt out of Dalamud settings for hiding UI".Loc());
+        if (ImGui.Checkbox("Game UI Toggled".Loc(), ref QoLBar.Config.OptOutGameUIOffHide))
         {
             QoLBar.Config.Save();
             QoLBar.Plugin.CheckHideOptOuts();
         }
         ImGui.SameLine(thirdWidth);
-        if (ImGui.Checkbox("過場動畫中", ref QoLBar.Config.OptOutCutsceneHide))
+        if (ImGui.Checkbox("In Cutscene".Loc(), ref QoLBar.Config.OptOutCutsceneHide))
         {
             QoLBar.Config.Save();
             QoLBar.Plugin.CheckHideOptOuts();
         }
         ImGui.SameLine(thirdWidth * 2);
-        if (ImGui.Checkbox("在 /gpose 中", ref QoLBar.Config.OptOutGPoseHide))
+        if (ImGui.Checkbox("In /gpose".Loc(), ref QoLBar.Config.OptOutGPoseHide))
         {
             QoLBar.Config.Save();
             QoLBar.Plugin.CheckHideOptOuts();
@@ -358,12 +358,12 @@ public class PluginUI : IDisposable
 
         ImGui.Spacing();
         ImGui.Spacing();
-        ImGui.TextUnformatted("暫時性設定，啟用請自行承擔風險");
-        ImGui.Checkbox("允許匯入條件", ref Importing.allowImportConditions);
+        ImGui.TextUnformatted("Temporary settings, ENABLE AT OWN RISK".Loc());
+        ImGui.Checkbox("Allow importing conditions".Loc(), ref Importing.allowImportConditions);
         ImGui.SameLine(halfWidth);
-        ImGui.Checkbox("允許匯入快捷鍵", ref Importing.allowImportHotkeys);
-        ImGui.Checkbox("允許匯出含敏感資訊的條件集", ref Importing.allowExportingSensitiveConditionSets);
-        ImGuiEx.SetItemTooltip("允許匯出包含個人資訊（例如角色 ID）的條件集。");
+        ImGui.Checkbox("Allow importing hotkeys".Loc(), ref Importing.allowImportHotkeys);
+        ImGui.Checkbox("Allow exporting sensitive condition sets".Loc(), ref Importing.allowExportingSensitiveConditionSets);
+        ImGuiEx.SetItemTooltip("Allows exporting condition sets that contain personal information, such as your character ID.".Loc());
     }
 
     private void DrawBackupManager()
@@ -371,14 +371,14 @@ public class PluginUI : IDisposable
         var path = QoLBar.Config.GetPluginBackupPath();
         var configFile = Configuration.ConfigFile;
 
-        if (ImGui.Button("開啟資料夾"))
+        if (ImGui.Button("Open Folder".Loc()))
             Process.Start(new ProcessStartInfo
             {
                 FileName = path,
                 UseShellExecute = true
             });
         ImGui.SameLine();
-        if (ImGui.Button("建立備份"))
+        if (ImGui.Button("Create Backup".Loc()))
             BackupFile(configFile);
 
         ImGui.Separator();
@@ -397,22 +397,21 @@ public class PluginUI : IDisposable
                     ImGui.NextColumn();
                     ImGui.TextUnformatted(file.LastWriteTime.ToString());
                     ImGui.NextColumn();
-                    ImGui.SmallButton("載入");
+                    ImGui.SmallButton("Load".Loc());
                     if (ImGui.IsItemHovered())
                     {
-                        ImGui.SetTooltip($"雙擊此按鈕以覆寫並\n" +
-                                         $"用 {file.Name} 重新載入目前的設定");
+                        ImGui.SetTooltip("Double click this button to overwrite and\nreload the current config with ??".Loc(file.Name));
 
                         if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
                             QoLBar.Config.LoadConfig(file);
                     }
 
                     ImGui.SameLine();
-                    if (ImGui.SmallButton("刪除"))
-                        ConfigEditorUI.DisplayRightClickDeleteMessage("雙擊右鍵以刪除！");
+                    if (ImGui.SmallButton("Delete".Loc()))
+                        ConfigEditorUI.DisplayRightClickDeleteMessage("Double right click to delete!");
                     if (ImGui.IsItemHovered())
                     {
-                        ImGui.SetTooltip($"雙擊右鍵此按鈕以刪除 {file.Name}");
+                        ImGui.SetTooltip("Double right click this button to delete ??".Loc(file.Name));
 
                         if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Right))
                             DeleteFile(file);
@@ -433,11 +432,11 @@ public class PluginUI : IDisposable
     private string debug_DeserializedImport = string.Empty;
     private unsafe void DrawDebugMenu()
     {
-        ImGui.TextUnformatted("遊戲資料指標");
+        ImGui.TextUnformatted("Game Data Pointers");
         ImGui.Indent();
         ImGui.Columns(3, "DebugPointers", false);
 
-        ImGui.TextUnformatted("UI Module（文字輸入啟用中）");
+        ImGui.TextUnformatted("UI Module (Text Input Active)");
         ImGui.NextColumn();
         ImGuiEx.TextCopyable($"{(nint)Game.uiModule:X}");
         ImGui.NextColumn();
@@ -457,14 +456,14 @@ public class PluginUI : IDisposable
         ImGui.TextUnformatted($"{Game.IsMacroRunning}");
         ImGui.NextColumn();
 
-        ImGui.TextUnformatted("Addon Config（HUD 版面配置編號）");
+        ImGui.TextUnformatted("Addon Config (HUD Layout #)");
         ImGui.NextColumn();
         ImGuiEx.TextCopyable($"{(nint)Game.addonConfig:X}");
         ImGui.NextColumn();
         ImGui.TextUnformatted($"{Game.CurrentHUDLayout}");
         ImGui.NextColumn();
 
-        ImGui.TextUnformatted("物品右鍵選單代理");
+        ImGui.TextUnformatted("Item Context Menu Agent");
         ImGui.NextColumn();
         ImGuiEx.TextCopyable($"{(nint)Game.agentInventoryContext:X}");
         ImGui.NextColumn();
@@ -475,10 +474,10 @@ public class PluginUI : IDisposable
         ImGui.Separator();
         ImGui.Spacing();
 
-        if (ImGui.TreeNodeEx("匯出編輯器", ImGuiTreeNodeFlags.FramePadding | ImGuiTreeNodeFlags.NoTreePushOnOpen))
+        if (ImGui.TreeNodeEx("Export Editor", ImGuiTreeNodeFlags.FramePadding | ImGuiTreeNodeFlags.NoTreePushOnOpen))
         {
             var available = ImGui.GetContentRegionAvail();
-            ImGui.TextUnformatted("序列化字串");
+            ImGui.TextUnformatted("Serialized String");
             ImGui.SetNextItemWidth(available.X);
             if (ImGui.InputText("##Serialized", ref debug_SerializedImport, 1000000, ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.NoHorizontalScroll))
             {
@@ -489,7 +488,7 @@ public class PluginUI : IDisposable
                     debug_DeserializedImport = JsonConvert.SerializeObject(import.shortcut, Formatting.Indented, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Objects });
             }
 
-            ImGui.TextUnformatted("反序列化字串");
+            ImGui.TextUnformatted("Deserialized String");
             if (ImGui.InputTextMultiline("##Deserialized", ref debug_DeserializedImport, 1000000, new Vector2(available.X, available.Y / 2)))
             {
                 try
@@ -600,7 +599,7 @@ public class PluginUI : IDisposable
     public void SetBarHidden(int i, bool toggle, bool b = false)
     {
         if (i < 0 || i >= bars.Count)
-            QoLBar.PrintError($"快捷列 #{i + 1} 不存在。");
+            QoLBar.PrintError("Bar #?? does not exist.".Loc(i + 1));
         else
         {
             if (toggle)
@@ -622,7 +621,7 @@ public class PluginUI : IDisposable
             }
         }
         if (!found)
-            QoLBar.PrintError($"快捷列「{name}」不存在。");
+            QoLBar.PrintError("Bar \"??\" does not exist.".Loc(name));
     }
 
     private void BackupFile(FileInfo file, string name = "", bool overwrite = false)

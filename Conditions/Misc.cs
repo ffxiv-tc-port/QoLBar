@@ -68,7 +68,7 @@ public static class MiscConditionHelpers
 
         if (!ImGui.IsItemHovered()) return;
 
-        var regexInfo = "正規表示式解析失敗！";
+        var regexInfo = "Failed regex!".Loc();
         if (reg.Success)
         {
             var min = ParseTime(reg.Groups[1].Value);
@@ -79,12 +79,12 @@ public static class MiscConditionHelpers
             var use4 = min.Item4 >= 0 && max.Item4 >= 0;
             var minStr = $"{(use1 ? min.Item1.ToString() : "X")}{(use2 ? min.Item2.ToString() : "X")}:{(use3 ? min.Item3.ToString() : "X")}{(use4 ? min.Item4.ToString() : "X")}";
             var maxStr = $"{(use1 ? max.Item1.ToString() : "X")}{(use2 ? max.Item2.ToString() : "X")}:{(use3 ? max.Item3.ToString() : "X")}{(use4 ? max.Item4.ToString() : "X")}";
-            regexInfo = $"最小值：{minStr}\n最大值：{maxStr} {(minStr == maxStr ? "\n警告：此條件將永遠為真！" : string.Empty)}";
+            regexInfo = "Minimum: ??\nMaximum: ??".Loc(minStr, maxStr) + " " + (minStr == maxStr ? "\nWarning: this will always be true!".Loc() : string.Empty);
         }
 
-        ImGui.SetTooltip("時間範圍應格式化為「XX:XX-XX:XX」（24 小時制），可包含「X」萬用字元。\n" +
-                         "例如「XX:30-XX:10」在 01:30、13:54、21:09 等時間都會回傳真。\n" +
-                         "最小時間為包含邊界，但最大時間則不包含。\n\n" +
+        ImGui.SetTooltip(("Timespan should be formatted as \"XX:XX-XX:XX\" (24h) and may contain \"X\" wildcards.\n" +
+                         "I.e \"XX:30-XX:10\" will return true for times such as 01:30, 13:54, and 21:09.\n" +
+                         "The minimum time is inclusive, but the maximum is not.\n\n").Loc() +
                          regexInfo);
     }
 
@@ -107,8 +107,8 @@ public static class MiscConditionHelpers
             QoLBar.Config.Save();
         }
 
-        ImGui.SetTooltip("使用「/xldata ai」以查詢各個視窗的名稱。\n" +
-                         "右鍵點擊可將此設為目前聚焦的介面元件名稱。");
+        ImGui.SetTooltip(("See \"/xldata ai\" to find the names of various windows.\n" +
+                         "Right click to set this to the currently focused UI addon's name.").Loc());
     }
 }
 
@@ -141,16 +141,16 @@ public class CharacterCondition : ICondition, IDrawableCondition, IArgCondition,
     {
         if (cndCfg.Arg != 0)
         {
-            if (ImGui.Button("清除資料"))
+            if (ImGui.Button("Clear Data".Loc()))
                 cndCfg.Arg = 0;
         }
         else
         {
-            if (ImGui.Button("指派資料"))
+            if (ImGui.Button("Assign Data".Loc()))
                 cndCfg.Arg = GetDefaultArg(cndCfg);
         }
 
-        ImGuiEx.SetItemTooltip("若此條件在匯入時沒有資料，\n將會自動指派。");
+        ImGuiEx.SetItemTooltip("If this condition has no data when imported,\nit will automatically be assigned.".Loc());
     }
     public dynamic GetDefaultArg(CndCfg cndCfg) => DalamudApi.ClientState.LocalContentId;
     public void OnImport(CndCfg cndCfg)
@@ -181,7 +181,7 @@ public class TargetCondition : ICondition, IDrawableCondition, IArgCondition
     public void Draw(CndCfg cndCfg)
     {
         var _ = (int)cndCfg.Arg;
-        if (ImGui.Combo("##TargetType", ref _, "目標\0焦點目標\0軟目標\0"))
+        if (ImGui.Combo("##TargetType", ref _, "Target".Loc() + "\0" + "Focus Target".Loc() + "\0" + "Soft Target".Loc() + "\0"))
             cndCfg.Arg = _;
     }
     public dynamic GetDefaultArg(CndCfg cndCfg) => 0;
