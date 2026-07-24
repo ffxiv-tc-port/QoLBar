@@ -161,21 +161,50 @@ public class TextureDictionary : ConcurrentDictionary<int, IDalamudTextureWrap>,
         DalamudApi.Framework.Update += UpdateLoad;
     }
 
-    // Seems to cause a nvwgf2umx.dll crash (System Access Violation Exception) if used async
-    private IDalamudTextureWrap LoadImage(int iconSlot, string path)
+    // Seems to cause a nvwgf2umx.dll crash (System Access Violation Exception) if used async.
+    // Investigated: the crash happens when CreateFromImageAsync()'s .Result is waited on from a
+    // plain background/ThreadPool thread (e.g. the same way LoadTex/LoadIcon offload their work
+    // below via loadingQueue+UpdateLoad, which runs those Tasks on the ThreadPool). Unlike
+    // CreateFromRaw (used by LoadTextureWrapSquare), CreateFromImageAsync's texture upload isn't
+    // safe to issue from a foreign thread while the main render thread concurrently drives the
+    // same D3D11 device context. Dalamud's own IFramework docs confirm this class of issue and
+    // call out RunOnFrameworkThread as the correct way to synchronously wait (.Result/.Wait())
+    // on a task like this. So only the disk read is offloaded to a background thread here; the
+    // actual CreateFromImageAsync().Result call is marshalled back onto the framework thread.
+    private void LoadImage(int iconSlot, string path)
     {
-        try
-        {
-            var tex = DalamudApi.TextureProvider.CreateFromImageAsync(File.OpenRead(path)).Result;
-            this[iconSlot] = tex;
-            return tex;
-        }
-        catch (Exception e)
-        {
-            DalamudApi.LogError($"Failed to load user texture {path}:\n{e}");
-        }
+        // Mirrors LoadTextureWrap: set a null placeholder immediately so TryGetValue won't
+        // re-trigger LoadTexture (and thus another LoadImage/Task.Run) for this key every frame
+        // while the load is still in flight.
+        this[iconSlot] = null;
 
-        return this[iconSlot];
+        Task.Run(() =>
+        {
+            byte[] data;
+            try
+            {
+                data = File.ReadAllBytes(path);
+            }
+            catch (Exception e)
+            {
+                DalamudApi.LogError($"Failed to load user texture {path}:\n{e}");
+                return;
+            }
+
+            DalamudApi.Framework.RunOnFrameworkThread(() =>
+            {
+                try
+                {
+                    using var stream = new MemoryStream(data);
+                    var tex = DalamudApi.TextureProvider.CreateFromImageAsync(stream).Result;
+                    TryUpdate(iconSlot, tex, null);
+                }
+                catch (Exception e)
+                {
+                    DalamudApi.LogError($"Failed to load user texture {path}:\n{e}");
+                }
+            });
+        });
     }
 
     private void LoadTex(int iconSlot, string path) => LoadTextureWrap(iconSlot, () =>
@@ -196,8 +225,7 @@ public class TextureDictionary : ConcurrentDictionary<int, IDalamudTextureWrap>,
 
         if (k < 0 && userIcons.TryGetValue(k, out var path))
         {
-            tex = LoadImage(k, path);
-            return true;
+            LoadImage(k, path);
         }
         else if (textureOverrides.TryGetValue(k, out var texPath))
         {
