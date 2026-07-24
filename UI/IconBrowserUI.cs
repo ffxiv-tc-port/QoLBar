@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using ImGuiNET;
 using Dalamud.Interface.Utility;
 
@@ -23,7 +24,13 @@ public static class IconBrowserUI
     private static bool _displayOutsideMain = true;
 
     private const int iconMax = 350_000;
-    private static HashSet<int> _iconExistsCache;
+
+    // Null while the cache hasn't been built yet (or is being rebuilt from scratch), only ever
+    // reassigned wholesale from the framework thread (see BuildCache), so plain reads of the
+    // reference from the main thread are safe without extra locking.
+    private static volatile HashSet<int> _iconExistsCache;
+    private static volatile bool _isBuildingCache = false;
+    public static bool IsBuildingCache => _isBuildingCache;
     private static readonly Dictionary<string, List<int>> _iconCache = new();
 
     public static void ToggleIconBrowser() => iconBrowserOpen = !iconBrowserOpen;
@@ -42,6 +49,7 @@ public static class IconBrowserUI
 
         if (ImGuiEx.AddHeaderIconButton("RebuildIconCache", TextureDictionary.FrameIconID + 105, 1.0f, Vector2.Zero, 0, 0xFFFFFFFF, "nhg"))
             BuildCache(true);
+        ImGuiEx.SetItemTooltip((_isBuildingCache ? "Rebuilding icon cache...".Loc() : "Rebuild Icon Cache".Loc()));
 
         if (ImGui.BeginTabBar("Icon Tabs", ImGuiTabBarFlags.NoTooltip))
         {
@@ -322,11 +330,17 @@ public static class IconBrowserUI
         DalamudApi.LogInfo($"Building Icon Browser cache for tab \"{_name}\"");
 
         var cache = _iconCache[_name] = new();
+        // Snapshot the reference in case a background rebuild reassigns _iconExistsCache while
+        // we're iterating (see BuildCache). While it's still null (nothing built yet), treat
+        // existence as "unknown" and optimistically include everything so the browser isn't
+        // just empty during the initial scan; BuildCache clears _iconCache once real data is in,
+        // so this tab gets rebuilt with accurate results afterwards.
+        var existsCache = _iconExistsCache;
         foreach (var (start, end) in _iconList)
         {
             for (int icon = start; icon < end; icon++)
             {
-                if (_iconExistsCache.Contains(icon))
+                if (existsCache == null || existsCache.Contains(icon))
                     cache.Add(icon);
             }
         }
@@ -334,32 +348,61 @@ public static class IconBrowserUI
         DalamudApi.LogInfo($"Done building tab cache! {cache.Count} icons found.");
     }
 
-    public static void BuildCache(bool rebuild)
+    private static void AddUserAndOverrideIcons()
     {
-        DalamudApi.LogInfo("Building Icon Browser cache");
-
-        _iconCache.Clear();
-        _iconExistsCache = !rebuild ? QoLBar.Config.LoadIconCache() ?? new() : new();
-
-        if (_iconExistsCache.Count == 0)
-        {
-            for (int i = 0; i < iconMax; i++)
-            {
-                if (TextureDictionary.IconExists((uint)i))
-                    _iconExistsCache.Add(i);
-            }
-
-            _iconExistsCache.Remove(125052); // Remove broken image (TextureFormat R8G8B8X8 is not supported for image conversion)
-
-            QoLBar.Config.SaveIconCache(_iconExistsCache);
-        }
-
         foreach (var kv in QoLBar.textureDictionaryLR.GetUserIcons())
             _iconExistsCache.Add(kv.Key);
 
         foreach (var kv in QoLBar.textureDictionaryLR.GetTextureOverrides())
             _iconExistsCache.Add(kv.Key);
+    }
 
-        DalamudApi.LogInfo($"Done building cache! {_iconExistsCache.Count} icons found.");
+    public static void BuildCache(bool rebuild)
+    {
+        if (_isBuildingCache) return; // A scan is already in progress, don't start another
+
+        DalamudApi.LogInfo("Building Icon Browser cache");
+
+        _iconCache.Clear();
+
+        var loaded = !rebuild ? QoLBar.Config.LoadIconCache() : null;
+        if (loaded is { Count: > 0 })
+        {
+            _iconExistsCache = loaded;
+            AddUserAndOverrideIcons();
+            DalamudApi.LogInfo($"Done building cache! {_iconExistsCache.Count} icons found.");
+            return;
+        }
+
+        // The on-disk cache is missing/empty (fresh install) or a rebuild was explicitly
+        // requested. This involves up to ~350,000 IconExists() calls (each up to 2x
+        // DataManager.FileExists), so run it on a background thread instead of blocking the
+        // main thread. _iconExistsCache is left null while this runs (see BuildTabCache for how
+        // that's handled), and reassigned wholesale from the framework thread once done.
+        _isBuildingCache = true;
+        _iconExistsCache = null;
+
+        Task.Run(() =>
+        {
+            var newCache = new HashSet<int>();
+            for (int i = 0; i < iconMax; i++)
+            {
+                if (TextureDictionary.IconExists((uint)i))
+                    newCache.Add(i);
+            }
+
+            newCache.Remove(125052); // Remove broken image (TextureFormat R8G8B8X8 is not supported for image conversion)
+
+            QoLBar.Config.SaveIconCache(newCache);
+
+            DalamudApi.Framework.RunOnFrameworkThread(() =>
+            {
+                _iconExistsCache = newCache;
+                AddUserAndOverrideIcons();
+                _iconCache.Clear(); // Tab caches built while _iconExistsCache was null were only optimistic guesses, rebuild them now
+                _isBuildingCache = false;
+                DalamudApi.LogInfo($"Done building cache! {_iconExistsCache.Count} icons found.");
+            });
+        });
     }
 }
