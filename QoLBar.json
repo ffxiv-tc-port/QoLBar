@@ -1,5 +1,5 @@
 {
-  "Author": "UnknownX, Lother",
+  "Author": "UnknownX",
   "Name": "QoL Bar",
   "Punchline": "可自訂的 ImGui 快捷列",
   "Description": "此插件旨在為聊天指令或其他插件提供簡單、可自訂且隨時可用的介面，\n減少為達成類似效果而需要使用巨集或佔用快捷列空間的需求。\n\n此插件初次啟動時應會顯示在遊戲視窗底部中央的一個小方框。",
