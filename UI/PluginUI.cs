@@ -288,7 +288,8 @@ public class PluginUI : IDisposable
         ImGui.Spacing();
         ImGui.TextUnformatted("Pie Settings".Loc());
         ImGui.SetNextItemWidth(quarterWidth);
-        if (ImGui.DragInt("Opacity".Loc(), ref QoLBar.Config.PieOpacity, 0.2f, 0, 255))
+        ImGui.DragInt("Opacity".Loc(), ref QoLBar.Config.PieOpacity, 0.2f, 0, 255);
+        if (ImGui.IsItemDeactivatedAfterEdit())
             QoLBar.Config.Save();
         ImGui.SameLine(halfWidth);
         if (ImGui.Checkbox("Alternate Angle".Loc(), ref QoLBar.Config.PieAlternateAngle))
