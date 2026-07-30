@@ -371,17 +371,10 @@ public static class Keybind
             var activated = IsHotkeyActivated(key, onUp) && (!onUp || !state.wasShortHeld) && (key | modifiers) == config.Hotkey;
             if (!activated) continue;
 
-            if (config.Type == ShCfg.ShortcutType.Category && config.Mode == ShCfg.ShortcutMode.Default)
+            if (config.Type == ShCfg.ShortcutType.Category && config.Mode == ShCfg.ShortcutMode.Default || config.Type == ShCfg.ShortcutType.PluginMenu)
             {
                 // TODO: Make less hacky
-                bar.ForceReveal();
-                var parent = sh.parent;
-                while (parent != null)
-                {
-                    parent.activated = true;
-                    parent = parent.parent;
-                }
-                sh.activated = true;
+                sh.ActivateWithParents();
             }
             else
             {

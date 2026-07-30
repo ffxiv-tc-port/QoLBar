@@ -108,6 +108,15 @@ public static class PieUI
 
                 totalItems++;
             }
+            else if (sh.Config.Type == ShortcutType.PluginMenu)
+            {
+                // The popup can only be opened from the bar's own draw, so activate the shortcut like a hotkey would
+                if (ImGuiPie.PieMenuItem($"{sh.Config.Name}"))
+                    sh.ActivateWithParents();
+                ImGuiPie.PieDrawOverride(DrawShortcut(sh));
+
+                totalItems++;
+            }
             else if (sh.Config.Type != ShortcutType.Spacer)
             {
                 if (ImGuiPie.PieMenuItem($"{sh.Config.Name}"))

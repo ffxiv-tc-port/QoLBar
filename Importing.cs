@@ -142,7 +142,7 @@ public static class Importing
 
     private static void CleanShortcut(ShCfg sh)
     {
-        if (sh.Type != ShCfg.ShortcutType.Category)
+        if (sh.Type is not ShCfg.ShortcutType.Category and not ShCfg.ShortcutType.PluginMenu)
         {
             sh.SubList = sh.GetDefaultValue(x => x.SubList);
             sh.CategoryColumns = sh.GetDefaultValue(x => x.CategoryColumns);
@@ -159,7 +159,16 @@ public static class Importing
         {
             if (sh.Mode != ShCfg.ShortcutMode.Default)
                 sh.Command = sh.GetDefaultValue(x => x.Command);
-            CleanShortcut(sh.SubList);
+            if (sh.SubList != null)
+                CleanShortcut(sh.SubList);
+        }
+
+        if (sh.Type == ShCfg.ShortcutType.PluginMenu)
+        {
+            // The plugin menu generates its contents at runtime and has no command
+            sh.SubList = sh.GetDefaultValue(x => x.SubList);
+            sh.Command = sh.GetDefaultValue(x => x.Command);
+            sh.Mode = sh.GetDefaultValue(x => x.Mode);
         }
 
         if (sh.Type == ShCfg.ShortcutType.Spacer)

@@ -61,7 +61,8 @@ public class ShCfg
     {
         Command,
         Category,
-        Spacer
+        Spacer,
+        PluginMenu
     }
     public enum ShortcutMode
     {

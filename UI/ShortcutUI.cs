@@ -5,6 +5,7 @@ using System.Linq;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
+using Dalamud.Plugin;
 using static QoLBar.ShCfg;
 
 namespace QoLBar;
@@ -148,7 +149,27 @@ public class ShortcutUI : IDisposable
                         break;
                 }
                 break;
+            case ShortcutType.PluginMenu:
+                if (!outsideDraw)
+                {
+                    parentBar.SetupCategoryPosition(v, parent != null);
+                    ImGui.OpenPopup("ShortcutCategory");
+                }
+                break;
         }
+    }
+
+    // Used by hotkeys and pies to open category style popups from outside the bar's own draw
+    public void ActivateWithParents()
+    {
+        parentBar.ForceReveal();
+        var p = parent;
+        while (p != null)
+        {
+            p.activated = true;
+            p = p.parent;
+        }
+        activated = true;
     }
 
     // TODO: rewrite these functions cause they suck
@@ -276,7 +297,7 @@ public class ShortcutUI : IDisposable
 
             if (!clicked)
             {
-                var isHoverEnabled = sh.CategoryOnHover && sh.Type == ShortcutType.Category;
+                var isHoverEnabled = sh.CategoryOnHover && sh.Type is ShortcutType.Category or ShortcutType.PluginMenu;
                 var allowHover = parentBar.IsFullyRevealed && !IsConfigPopupOpen() && !ImGui.IsPopupOpen("ShortcutCategory") && Game.IsGameFocused && !ImGui.IsAnyMouseDown() && !ImGui.IsMouseReleased(ImGuiMouseButton.Right);
                 if (isHoverEnabled && allowHover)
                 {
@@ -314,13 +335,16 @@ public class ShortcutUI : IDisposable
 
         ImGui.OpenPopupOnItemClick("editShortcut", ImGuiPopupFlags.MouseButtonRight);
 
-        if (Config.Type == ShortcutType.Category && Config.Mode == ShortcutMode.Default)
+        if (Config.Type == ShortcutType.Category && Config.Mode == ShortcutMode.Default || Config.Type == ShortcutType.PluginMenu)
         {
             if (parentBar.IsDocked)
                 ImGuiHelpers.ForceNextWindowMainViewport();
             ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(sh.CategorySpacing[0], sh.CategorySpacing[1]));
             ImGuiEx.PushFontScale(1); // Popups will square this value for some reason, so it has to be reset temporarily
-            DrawCategory();
+            if (Config.Type == ShortcutType.PluginMenu)
+                DrawPluginMenu();
+            else
+                DrawCategory();
             ImGuiEx.PopFontScale();
             ImGui.PopStyleVar();
         }
@@ -413,6 +437,126 @@ public class ShortcutUI : IDisposable
         ImGui.EndPopup();
     }
 
+    private static IEnumerable<(IExposedPlugin plugin, bool configOnly)> GetOpenablePlugins() =>
+        DalamudApi.PluginInterface.InstalledPlugins
+            .Where(p => p.IsLoaded && (p.HasMainUi || p.HasConfigUi))
+            .Select(p => (plugin: p, configOnly: !p.HasMainUi))
+            .OrderBy(t => t.configOnly)
+            .ThenBy(t => t.plugin.Name, StringComparer.OrdinalIgnoreCase);
+
+    private void DrawPluginMenu()
+    {
+        if (_fuckImGui)
+        {
+            parentBar.SetCategoryPosition(ImGuiCond.Always);
+            _fuckImGui = false;
+        }
+
+        if (!ImGui.BeginPopup("ShortcutCategory", (Config.CategoryNoBackground ? ImGuiWindowFlags.NoBackground : ImGuiWindowFlags.None) | ImGuiWindowFlags.NoMove))
+        {
+            wasCategoryHovered = false;
+            return;
+        }
+
+        ImGuiEx.PushFontSize(QoLBar.DefaultFontSize * Config.CategoryScale);
+
+        if (ImGui.IsWindowAppearing())
+            _fuckImGui = true;
+
+        parentBar.Reveal();
+
+        if (ImGui.IsWindowHovered() && ImGui.IsMouseReleased(ImGuiMouseButton.Right) && !ImGui.IsAnyItemHovered())
+            ImGui.OpenPopup("editShortcut");
+
+        // Dupe code but only cause ImGui sucks
+        PluginUI.DrawExternalWindow(() => DrawConfig(Config.Name.Contains("::")), parentBar.IsDocked);
+
+        var windowHovered = ImGui.IsWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.ChildWindows);
+        isCategoryHovered = windowHovered || !wasCategoryHovered || ImGui.IsPopupOpen(default, ImGuiPopupFlags.AnyPopupId);
+
+        if (Config.CategoryHoverClose)
+        {
+            var shortcuts = parent?.children ?? parentBar.children;
+            if (!wasCategoryHovered && (windowHovered || !isHovered && shortcuts.Any(sh => sh.isHovered)))
+                wasCategoryHovered = true;
+        }
+
+        var cols = Config.CategoryColumns;
+        var width = (float)Math.Round(Config.CategoryWidth * ImGuiHelpers.GlobalScale * Config.CategoryScale);
+        var height = ImGui.GetFontSize() + Style.FramePadding.Y * 2;
+
+        var drawn = 0;
+        foreach (var (plugin, configOnly) in GetOpenablePlugins())
+        {
+            ImGui.PushID(plugin.InternalName);
+
+            DrawPluginButton(plugin, configOnly, new Vector2(width, height));
+
+            if (cols <= 0 || drawn % cols != cols - 1)
+                ImGui.SameLine();
+
+            drawn++;
+            ImGui.PopID();
+        }
+
+        if (drawn == 0)
+            ImGui.TextUnformatted("No plugins available.".Loc());
+
+        ImGuiEx.ClampWindowPosToViewport();
+
+        if (Config.CategoryHoverClose && !isCategoryHovered)
+            ImGui.CloseCurrentPopup();
+
+        ImGuiEx.PopFontSize();
+
+        ImGui.EndPopup();
+    }
+
+    private void DrawPluginButton(IExposedPlugin plugin, bool configOnly, Vector2 size)
+    {
+        if (!Config.CategoryNoBackground)
+            ImGui.PushStyleColor(ImGuiCol.Button, Vector4.Zero);
+        else
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.08f, 0.08f, 0.08f, 0.94f));
+
+        if (configOnly)
+            ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetColorU32(ImGuiCol.TextDisabled));
+
+        ImGuiEx.PushFontScale(ImGuiEx.GetFontScale() * Config.CategoryFontScale);
+        var clicked = ImGui.Button(plugin.Name, size);
+        ImGuiEx.PopFontScale();
+
+        if (configOnly)
+            ImGui.PopStyleColor();
+        ImGui.PopStyleColor();
+
+        if (ImGui.IsItemHovered())
+        {
+            QoLBar.Font.Pop();
+            ImGui.SetTooltip(configOnly
+                ? "This plugin has no main interface, its settings will be opened instead.".Loc()
+                : "Open this plugin's interface.".Loc());
+            QoLBar.Font.Push();
+        }
+
+        if (!clicked || parentBar.IsDragging || IsConfigPopupOpen()) return;
+
+        try
+        {
+            if (configOnly)
+                plugin.OpenConfigUi();
+            else
+                plugin.OpenMainUi();
+        }
+        catch (Exception e)
+        {
+            DalamudApi.LogError($"Failed to open the UI of {plugin.InternalName}!", e);
+        }
+
+        if (!Config.CategoryStaysOpen)
+            ImGui.CloseCurrentPopup();
+    }
+
     private void DrawConfig(bool hasIcon)
     {
         if (!ImGui.BeginPopup("editShortcut")) return;
@@ -428,7 +572,7 @@ public class ShortcutUI : IDisposable
             {
                 ConfigEditorUI.EditShortcutConfigBase(Config, true, hasIcon);
 
-                if (Config.Type != ShortcutType.Spacer)
+                if (Config.Type is not ShortcutType.Spacer and not ShortcutType.PluginMenu)
                     ConfigEditorUI.EditShortcutMode(this);
 
                 ConfigEditorUI.EditShortcutColor(this);
@@ -439,7 +583,7 @@ public class ShortcutUI : IDisposable
                 ImGui.EndTabItem();
             }
 
-            if (Config.Type == ShortcutType.Category && ImGui.BeginTabItem("Category".Loc()))
+            if (Config.Type is ShortcutType.Category or ShortcutType.PluginMenu && ImGui.BeginTabItem("Category".Loc()))
             {
                 ConfigEditorUI.EditShortcutCategoryOptions(this);
                 ImGui.EndTabItem();

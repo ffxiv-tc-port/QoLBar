@@ -126,6 +126,9 @@ public static class ConfigEditorUI
         ImGui.RadioButton("Category".Loc(), ref _t, 1);
         ImGui.SameLine(ImGui.GetWindowWidth() / 3 * 2);
         ImGui.RadioButton("Spacer".Loc(), ref _t, 2);
+        ImGui.RadioButton("Plugin Menu".Loc(), ref _t, 3);
+        ImGuiEx.SetItemTooltip(("Automatically lists every loaded plugin, clicking a plugin will open its interface.\n" +
+                               "Plugins without a main interface are dimmed and will open their settings instead.").Loc());
         if (_t != (int)sh.Type)
         {
             sh.Type = (ShortcutType)_t;
@@ -136,7 +139,7 @@ public static class ConfigEditorUI
                 QoLBar.Config.Save();
         }
 
-        if (sh.Type != ShortcutType.Spacer && (sh.Type != ShortcutType.Category || sh.Mode == ShortcutMode.Default))
+        if (sh.Type is not ShortcutType.Spacer and not ShortcutType.PluginMenu && (sh.Type != ShortcutType.Category || sh.Mode == ShortcutMode.Default))
         {
             var height = ImGui.GetFontSize() * Math.Min(sh.Command.Split('\n').Length + 1, 7) + ImGui.GetStyle().FramePadding.Y * 2; // ImGui issue #238: can't disable multiline scrollbar and it appears a whole line earlier than it should, so thats cool I guess
 
