@@ -132,7 +132,7 @@ public unsafe class Game
     {
         NumCopiedMacroLines = Macro.numLines;
         NumExecutedMacroLines = Macro.numLines;
-        ExecuteMacroHook!.Original(raptureShellModule, macro);
+        ExecuteMacroHook!.OriginalDisposeSafe(raptureShellModule, macro);
     }
 
     public static void ReadyCommand()
@@ -196,12 +196,12 @@ public unsafe class Game
                                     if (macro < 100)
                                     {
                                         fixed (void* ptr = &raptureMacroModule->Individual[macro])
-                                            ExecuteMacroHook.Original(raptureShellModule, (nint)ptr);
+                                            ExecuteMacroHook.OriginalDisposeSafe(raptureShellModule, (nint)ptr);
                                     }
                                     else
                                     {
                                         fixed (void* ptr = &raptureMacroModule->Shared[macro - 100])
-                                            ExecuteMacroHook.Original(raptureShellModule, (nint)ptr);
+                                            ExecuteMacroHook.OriginalDisposeSafe(raptureShellModule, (nint)ptr);
                                     }
                                 }
                                 else
@@ -336,7 +336,7 @@ public unsafe class Game
             NumCopiedMacroLines = count;
             NumExecutedMacroLines = count;
 
-            ExecuteMacroHook.Original(raptureShellModule, macroPtr);
+            ExecuteMacroHook.OriginalDisposeSafe(raptureShellModule, macroPtr);
 
             NumCopiedMacroLines = Macro.numLines;
         }
