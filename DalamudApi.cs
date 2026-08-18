@@ -92,6 +92,9 @@ public class DalamudApi
     public static IObjectTable ObjectTable { get; private set; }
 
     [PluginService]
+    public static IPlayerState PlayerState { get; private set; }
+
+    [PluginService]
     public static IPartyFinderGui PartyFinderGui { get; private set; }
 
     [PluginService]
