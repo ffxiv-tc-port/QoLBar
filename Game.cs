@@ -47,7 +47,22 @@ public unsafe class Game
 
     public static DateTimeOffset EorzeaTime => DateTimeOffset.FromUnixTimeSeconds(Framework.Instance()->ClientTime.EorzeaTime);
 
-    public static bool IsInExplorerMode => (EventFramework.Instance()->GetInstanceContentDirector()->ContentFlags & 1) != 0;
+    // 兩層都會是 null,而且都是常態不是異常:
+    //   EventFramework.Instance() 是 [StaticAddress(..., isPointer: true)] —— 讀「指標的位址」,登入前那個槽就是 0。
+    //   GetInstanceContentDirector() 不在副本裡時回 null —— CS 自己的 GetInstanceContentDirector<T>() 就先判過空才用。
+    // 解參考 null 原生指標是攔不到的 AVE(try/catch 無效),而這支被 ExplorerModeCondition.Check 每次判定條件時呼叫。
+    // 讀不到一律回 false(＝不在探索模式),對「不在副本裡」來說本來就是正確答案。
+    public static bool IsInExplorerMode
+    {
+        get
+        {
+            var eventFramework = EventFramework.Instance();
+            if (eventFramework == null)
+                return false;
+            var director = eventFramework->GetInstanceContentDirector();
+            return director != null && (director->ContentFlags & 1) != 0;
+        }
+    }
 
     public static UIModule* uiModule;
 
