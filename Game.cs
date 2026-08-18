@@ -365,9 +365,22 @@ public unsafe class Game
 
     public static AtkUnitBase* GetFocusedAddon()
     {
-        var units = AtkStage.Instance()->RaptureAtkUnitManager->AtkUnitManager.FocusedUnitsList;
-        var count = units.Count;
-        return count == 0 ? null : units.Entries[count - 1].Value;
+        // AtkStage.Instance() 是 [StaticAddress(..., isPointer: true)]：特徵碼沒解析到才會擲例外，
+        // 解析到但遊戲還沒建好 AtkStage 時回傳的是 null 指標。RaptureAtkUnitManager 則是純指標欄位。
+        // 兩者任一為 null 時裸解參考產生的是 try/catch 攔不到的 AccessViolationException。
+        var stage = AtkStage.Instance();
+        if (stage == null) return null;
+
+        var unitManager = stage->RaptureAtkUnitManager;
+        if (unitManager == null) return null;
+
+        var entries = unitManager->AtkUnitManager.FocusedUnitsList.Entries;
+        int count = unitManager->AtkUnitManager.FocusedUnitsList.Count;
+        // Count 是 ushort 而 Entries 固定長 256，理論上不該超出；超出時取不到就回 null（fail-closed），
+        // 不要讓 UI 繪製路徑丟 IndexOutOfRangeException。
+        if (count <= 0 || count > entries.Length) return null;
+
+        return entries[count - 1].Value;
     }
 
     public static void UseItem(uint id)
