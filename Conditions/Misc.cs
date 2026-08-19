@@ -280,7 +280,12 @@ public class PartyCondition : ICondition, IDrawableCondition, IArgCondition
     public string ID => "pt";
     public string ConditionName => "# Party Member Exists".Loc();
     public int DisplayPriority => 0;
-    public unsafe bool Check(dynamic arg) => PronounModule.Instance()->ResolvePlaceholder($"<{arg}>", 0, 0) != null;
+    // PronounModule.Instance() 是手寫包裝（UIModule 為 null 時回 null），未登入／登出瞬間會是 null。
+    public unsafe bool Check(dynamic arg)
+    {
+        var pronounModule = PronounModule.Instance();
+        return pronounModule != null && pronounModule->ResolvePlaceholder($"<{arg}>", 0, 0) != null;
+    }
     public string GetTooltip(CndCfg cndCfg) => "This will only return true if the party member exists in the current area.".Loc();
     public string GetSelectableTooltip(CndCfg cndCfg) => null;
     public void Draw(CndCfg cndCfg)
@@ -298,7 +303,11 @@ public class PetCondition : ICondition
     public string ID => "pe";
     public string ConditionName => "Pet Exists".Loc();
     public int DisplayPriority => 0;
-    public unsafe bool Check(dynamic arg) => PronounModule.Instance()->ResolvePlaceholder("<pet>", 0, 0) != null;
+    public unsafe bool Check(dynamic arg)
+    {
+        var pronounModule = PronounModule.Instance();
+        return pronounModule != null && pronounModule->ResolvePlaceholder("<pet>", 0, 0) != null;
+    }
 }
 
 [MiscCondition]
@@ -307,7 +316,11 @@ public class ChocoboCondition : ICondition
     public string ID => "ce";
     public string ConditionName => "Chocobo Exists".Loc();
     public int DisplayPriority => 0;
-    public unsafe bool Check(dynamic arg) => PronounModule.Instance()->ResolvePlaceholder("<c>", 0, 0) != null;
+    public unsafe bool Check(dynamic arg)
+    {
+        var pronounModule = PronounModule.Instance();
+        return pronounModule != null && pronounModule->ResolvePlaceholder("<c>", 0, 0) != null;
+    }
 }
 
 [MiscCondition]
