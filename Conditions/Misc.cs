@@ -205,7 +205,11 @@ public class EorzeaTimespanCondition : ICondition, IDrawableCondition, IArgCondi
     private static bool CheckEorzeaTimeCondition(string arg)
     {
         var reg = Regex.Match(arg, MiscConditionHelpers.TimespanRegex);
-        return reg.Success && MiscConditionHelpers.IsTimeBetween(Game.EorzeaTime.ToString("HH:mm"), reg.Groups[1].Value, reg.Groups[2].Value);
+        // Game.EorzeaTime 取不到（Framework 尚未就緒）時回 null ⇒ 條件不成立。
+        // 讀不到時間就不讓時段條件成立，方向與其他條件的「讀不到 = false」一致。
+        return reg.Success
+            && Game.EorzeaTime is { } eorzeaTime
+            && MiscConditionHelpers.IsTimeBetween(eorzeaTime.ToString("HH:mm"), reg.Groups[1].Value, reg.Groups[2].Value);
     }
     public bool Check(dynamic arg) => arg is string range && CheckEorzeaTimeCondition(range);
     public string GetTooltip(CndCfg cndCfg) => null;

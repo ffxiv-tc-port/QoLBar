@@ -45,7 +45,21 @@ public unsafe class Game
         }
     }
 
-    public static DateTimeOffset EorzeaTime => DateTimeOffset.FromUnixTimeSeconds(Framework.Instance()->ClientTime.EorzeaTime);
+    // 🔴 Framework.Instance() 與下面 EventFramework 同理,是 [StaticAddress(..., isPointer: true)]
+    //    —— 讀「指標的位址」再解參考一層,登入前那個槽就是 0,回的是 null 不是擲例外。
+    //    裸解參考 null 原生指標是攔不到的 AVE(try/catch 無效)。
+    //    📌 回 null 而不是退回 UnixEpoch:退回紀元會變成「00:00」,可能剛好落進使用者設定的
+    //    時段條件裡而靜默成立,那比「條件不成立」難察覺得多。
+    public static DateTimeOffset? EorzeaTime
+    {
+        get
+        {
+            var framework = Framework.Instance();
+            return framework == null
+                ? null
+                : DateTimeOffset.FromUnixTimeSeconds(framework->ClientTime.EorzeaTime);
+        }
+    }
 
     // 兩層都會是 null,而且都是常態不是異常:
     //   EventFramework.Instance() 是 [StaticAddress(..., isPointer: true)] —— 讀「指標的位址」,登入前那個槽就是 0。
@@ -122,7 +136,19 @@ public unsafe class Game
 
     public static void Initialize()
     {
-        uiModule = Framework.Instance()->GetUIModule();
+        // 🔴 Framework.Instance()（isPointer:true）與 GetUIModule() 都可能回 null。
+        //    這裡是外掛載入時的一次性初始化,失敗語意＝「這個外掛沒有辦法運作」,
+        //    所以擲一個訊息明確的受管理例外,而不是讓下面三行對 null 裸解參考
+        //    ——後者是攔不到的 AVE,會整個遊戲閃退且堆疊指不到這裡。
+        //    呼叫端 QoLBar.cs:70 已經包在 try/catch 裡,會記錄 "Failed loading QoLBar!"
+        //    並讓 pluginReady 維持 false,這是既有的失敗路徑,不需要新增處理。
+        var framework = Framework.Instance();
+        if (framework == null)
+            throw new InvalidOperationException("Game.Initialize: Framework.Instance() 回 null,遊戲尚未就緒。");
+
+        uiModule = framework->GetUIModule();
+        if (uiModule == null)
+            throw new InvalidOperationException("Game.Initialize: UIModule 回 null,遊戲尚未就緒。");
 
         raptureShellModule = uiModule->GetRaptureShellModule();
         raptureMacroModule = uiModule->GetRaptureMacroModule();
