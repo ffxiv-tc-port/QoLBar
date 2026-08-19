@@ -433,38 +433,38 @@ public class PluginUI : IDisposable
     private string debug_DeserializedImport = string.Empty;
     private unsafe void DrawDebugMenu()
     {
-        ImGui.TextUnformatted("Game Data Pointers");
+        ImGui.TextUnformatted("Game Data Pointers".Loc());
         ImGui.Indent();
         ImGui.Columns(3, "DebugPointers", false);
 
-        ImGui.TextUnformatted("UI Module (Text Input Active)");
+        ImGui.TextUnformatted("UI Module (Text Input Active)".Loc());
         ImGui.NextColumn();
         ImGuiEx.TextCopyable($"{(nint)Game.uiModule:X}");
         ImGui.NextColumn();
         ImGui.TextUnformatted($"{Game.IsGameTextInputActive}");
         ImGui.NextColumn();
 
-        ImGui.TextUnformatted("Rapture Shell Module");
+        ImGui.TextUnformatted("Rapture Shell Module".Loc());
         ImGui.NextColumn();
         ImGuiEx.TextCopyable($"{(nint)Game.raptureShellModule:X}");
         ImGui.NextColumn();
         ImGui.NextColumn();
 
-        ImGui.TextUnformatted("Rapture Macro Module");
+        ImGui.TextUnformatted("Rapture Macro Module".Loc());
         ImGui.NextColumn();
         ImGuiEx.TextCopyable($"{(nint)Game.raptureMacroModule:X}");
         ImGui.NextColumn();
         ImGui.TextUnformatted($"{Game.IsMacroRunning}");
         ImGui.NextColumn();
 
-        ImGui.TextUnformatted("Addon Config (HUD Layout #)");
+        ImGui.TextUnformatted("Addon Config (HUD Layout #)".Loc());
         ImGui.NextColumn();
         ImGuiEx.TextCopyable($"{(nint)Game.addonConfig:X}");
         ImGui.NextColumn();
         ImGui.TextUnformatted($"{Game.CurrentHUDLayout}");
         ImGui.NextColumn();
 
-        ImGui.TextUnformatted("Item Context Menu Agent");
+        ImGui.TextUnformatted("Item Context Menu Agent".Loc());
         ImGui.NextColumn();
         ImGuiEx.TextCopyable($"{(nint)Game.agentInventoryContext:X}");
         ImGui.NextColumn();
@@ -478,7 +478,7 @@ public class PluginUI : IDisposable
         if (ImGui.TreeNodeEx("Export Editor", ImGuiTreeNodeFlags.FramePadding | ImGuiTreeNodeFlags.NoTreePushOnOpen))
         {
             var available = ImGui.GetContentRegionAvail();
-            ImGui.TextUnformatted("Serialized String");
+            ImGui.TextUnformatted("Serialized String".Loc());
             ImGui.SetNextItemWidth(available.X);
             if (ImGui.InputText("##Serialized", ref debug_SerializedImport, 1000000, ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.NoHorizontalScroll))
             {
@@ -489,7 +489,7 @@ public class PluginUI : IDisposable
                     debug_DeserializedImport = JsonConvert.SerializeObject(import.shortcut, Formatting.Indented, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Objects });
             }
 
-            ImGui.TextUnformatted("Deserialized String");
+            ImGui.TextUnformatted("Deserialized String".Loc());
             if (ImGui.InputTextMultiline("##Deserialized", ref debug_DeserializedImport, 1000000, new Vector2(available.X, available.Y / 2)))
             {
                 try
