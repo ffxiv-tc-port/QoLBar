@@ -251,7 +251,9 @@ public class HUDLayoutCondition : ICondition, IDrawableCondition, IArgCondition
         if (ImGui.SliderInt("##HUDLayout", ref _, 1, 4))
             cndCfg.Arg = _ - 1;
     }
-    public dynamic GetDefaultArg(CndCfg cndCfg) => Game.CurrentHUDLayout;
+    // 取不到目前配置時 CurrentHUDLayout 是 -1（哨兵值）。Check 拿到 -1 會落在
+    // 「不成立」是對的，但這裡是要寫進使用者設定的預設值，夾回 0 才不會存進哨兵值。
+    public dynamic GetDefaultArg(CndCfg cndCfg) => Math.Max(0, Game.CurrentHUDLayout);
 }
 
 [MiscCondition]
