@@ -126,6 +126,9 @@ public static class ConfigEditorUI
         ImGui.RadioButton("Category".Loc(), ref _t, 1);
         ImGui.SameLine(ImGui.GetWindowWidth() / 3 * 2);
         ImGui.RadioButton("Spacer".Loc(), ref _t, 2);
+        ImGui.RadioButton("Plugin Menu".Loc(), ref _t, 3);
+        ImGuiEx.SetItemTooltip(("Automatically lists every loaded plugin, clicking a plugin will open its interface.\n" +
+                               "Plugins without a main interface are dimmed and will open their settings instead.").Loc());
         if (_t != (int)sh.Type)
         {
             sh.Type = (ShortcutType)_t;
@@ -136,7 +139,7 @@ public static class ConfigEditorUI
                 QoLBar.Config.Save();
         }
 
-        if (sh.Type != ShortcutType.Spacer && (sh.Type != ShortcutType.Category || sh.Mode == ShortcutMode.Default))
+        if (sh.Type is not ShortcutType.Spacer and not ShortcutType.PluginMenu && (sh.Type != ShortcutType.Category || sh.Mode == ShortcutMode.Default))
         {
             var height = ImGui.GetFontSize() * Math.Min(sh.Command.Split('\n').Length + 1, 7) + ImGui.GetStyle().FramePadding.Y * 2; // ImGui issue #238: can't disable multiline scrollbar and it appears a whole line earlier than it should, so thats cool I guess
 
@@ -213,34 +216,38 @@ public static class ConfigEditorUI
     {
         var color = ImGui.ColorConvertU32ToFloat4(sh.Config.Color);
         color.W += sh.Config.ColorAnimation / 255f; // Temporary
-        if (ImGui.ColorEdit4("Color".Loc(), ref color, ImGuiColorEditFlags.NoDragDrop | ImGuiColorEditFlags.AlphaPreviewHalf))
+        var changed = ImGui.ColorEdit4("Color".Loc(), ref color, ImGuiColorEditFlags.NoDragDrop | ImGuiColorEditFlags.AlphaPreviewHalf);
+        if (changed)
         {
             sh.Config.Color = ImGui.ColorConvertFloat4ToU32(color);
             sh.Config.ColorAnimation = Math.Max((int)Math.Round(color.W * 255) - 255, 0);
+        }
+
+        if (ImGui.IsItemDeactivatedAfterEdit())
             QoLBar.Config.Save();
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+
+        return changed;
     }
 
     public static void EditShortcutCategoryOptions(ShortcutUI sh)
     {
-        if (ImGui.SliderInt("Button Width".Loc(), ref sh.Config.CategoryWidth, 0, 200))
+        ImGui.SliderInt("Button Width".Loc(), ref sh.Config.CategoryWidth, 0, 200);
+        if (ImGui.IsItemDeactivatedAfterEdit())
             QoLBar.Config.Save();
         ImGuiEx.SetItemTooltip("Set to 0 to use text width.".Loc());
 
-        if (ImGui.SliderInt("Columns".Loc(), ref sh.Config.CategoryColumns, 0, 12))
+        ImGui.SliderInt("Columns".Loc(), ref sh.Config.CategoryColumns, 0, 12);
+        if (ImGui.IsItemDeactivatedAfterEdit())
             QoLBar.Config.Save();
         ImGuiEx.SetItemTooltip(("Number of shortcuts in each row before starting another.\n" +
                                "Set to 0 to specify infinite.").Loc());
 
-        if (ImGui.DragFloat("Scale".Loc(), ref sh.Config.CategoryScale, 0.002f, 0.7f, 2f, "%.2f"))
+        ImGui.DragFloat("Scale".Loc(), ref sh.Config.CategoryScale, 0.002f, 0.7f, 2f, "%.2f");
+        if (ImGui.IsItemDeactivatedAfterEdit())
             QoLBar.Config.Save();
 
-        if (ImGui.DragFloat("Font Scale".Loc(), ref sh.Config.CategoryFontScale, 0.0018f, 0.5f, 1.0f, "%.2f"))
+        ImGui.DragFloat("Font Scale".Loc(), ref sh.Config.CategoryFontScale, 0.0018f, 0.5f, 1.0f, "%.2f");
+        if (ImGui.IsItemDeactivatedAfterEdit())
             QoLBar.Config.Save();
 
         var spacing = new Vector2(sh.Config.CategorySpacing[0], sh.Config.CategorySpacing[1]);
@@ -248,8 +255,9 @@ public static class ConfigEditorUI
         {
             sh.Config.CategorySpacing[0] = (int)spacing.X;
             sh.Config.CategorySpacing[1] = (int)spacing.Y;
-            QoLBar.Config.Save();
         }
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            QoLBar.Config.Save();
 
         if (ImGui.Checkbox("Open on Hover".Loc(), ref sh.Config.CategoryOnHover))
             QoLBar.Config.Save();
@@ -267,7 +275,8 @@ public static class ConfigEditorUI
 
     public static void EditShortcutIconOptions(ShortcutUI sh)
     {
-        if (ImGui.DragFloat("Zoom".Loc(), ref sh.Config.IconZoom, 0.005f, 1.0f, 5.0f, "%.2f"))
+        ImGui.DragFloat("Zoom".Loc(), ref sh.Config.IconZoom, 0.005f, 1.0f, 5.0f, "%.2f");
+        if (ImGui.IsItemDeactivatedAfterEdit())
             QoLBar.Config.Save();
 
         var offset = new Vector2(sh.Config.IconOffset[0], sh.Config.IconOffset[1]);
@@ -275,8 +284,9 @@ public static class ConfigEditorUI
         {
             sh.Config.IconOffset[0] = offset.X;
             sh.Config.IconOffset[1] = offset.Y;
-            QoLBar.Config.Save();
         }
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            QoLBar.Config.Save();
 
         var r = (float)(sh.Config.IconRotation * 180 / Math.PI) % 360;
         if (ImGui.DragFloat("Rotation".Loc(), ref r, 0.2f, -360, 360, "%.f"))
@@ -284,8 +294,9 @@ public static class ConfigEditorUI
             if (r < 0)
                 r += 360;
             sh.Config.IconRotation = (float)(r / 180 * Math.PI);
-            QoLBar.Config.Save();
         }
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            QoLBar.Config.Save();
 
         static string formatName(Lumina.Excel.Sheets.Action a) => a.RowId switch
         {
@@ -376,8 +387,12 @@ public static class ConfigEditorUI
                 QoLBar.Config.Save();
             }
 
-            if ((bar.Config.Visibility != BarVisibility.Always) && ImGui.DragFloat("Reveal Area Scale".Loc(), ref bar.Config.RevealAreaScale, 0.01f, 0.0f, 1.0f, "%.2f"))
-                QoLBar.Config.Save();
+            if (bar.Config.Visibility != BarVisibility.Always)
+            {
+                ImGui.DragFloat("Reveal Area Scale".Loc(), ref bar.Config.RevealAreaScale, 0.01f, 0.0f, 1.0f, "%.2f");
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                    QoLBar.Config.Save();
+            }
         }
         else
         {
@@ -427,30 +442,35 @@ public static class ConfigEditorUI
             {
                 bar.Config.Position[0] = Math.Min(pos.X / area.X, 1);
                 bar.Config.Position[1] = Math.Min(pos.Y / area.Y, 1);
-                QoLBar.Config.Save();
                 if (bar.IsDocked)
                     bar.SetupPivot();
                 else
                     bar._setPos = true;
             }
+            if (ImGui.IsItemDeactivatedAfterEdit())
+                QoLBar.Config.Save();
         }
     }
 
     public static void EditBarStyleOptions(BarUI bar)
     {
-        if (ImGui.SliderInt("Button Width".Loc(), ref bar.Config.ButtonWidth, 0, 200))
+        ImGui.SliderInt("Button Width".Loc(), ref bar.Config.ButtonWidth, 0, 200);
+        if (ImGui.IsItemDeactivatedAfterEdit())
             QoLBar.Config.Save();
         ImGuiEx.SetItemTooltip("Set to 0 to use text width.".Loc());
 
-        if (ImGui.SliderInt("Columns".Loc(), ref bar.Config.Columns, 0, 12))
+        ImGui.SliderInt("Columns".Loc(), ref bar.Config.Columns, 0, 12);
+        if (ImGui.IsItemDeactivatedAfterEdit())
             QoLBar.Config.Save();
         ImGuiEx.SetItemTooltip(("Number of shortcuts in each row before starting another.\n" +
                                "Set to 0 to specify infinite.").Loc());
 
-        if (ImGui.DragFloat("Scale".Loc(), ref bar.Config.Scale, 0.002f, 0.7f, 2.0f, "%.2f"))
+        ImGui.DragFloat("Scale".Loc(), ref bar.Config.Scale, 0.002f, 0.7f, 2.0f, "%.2f");
+        if (ImGui.IsItemDeactivatedAfterEdit())
             QoLBar.Config.Save();
 
-        if (ImGui.DragFloat("Font Scale".Loc(), ref bar.Config.FontScale, 0.0018f, 0.5f, 1.0f, "%.2f"))
+        ImGui.DragFloat("Font Scale".Loc(), ref bar.Config.FontScale, 0.0018f, 0.5f, 1.0f, "%.2f");
+        if (ImGui.IsItemDeactivatedAfterEdit())
             QoLBar.Config.Save();
 
         var spacing = new Vector2(bar.Config.Spacing[0], bar.Config.Spacing[1]);
@@ -458,8 +478,9 @@ public static class ConfigEditorUI
         {
             bar.Config.Spacing[0] = (int)spacing.X;
             bar.Config.Spacing[1] = (int)spacing.Y;
-            QoLBar.Config.Save();
         }
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            QoLBar.Config.Save();
 
         if (ImGui.Checkbox("No Background".Loc(), ref bar.Config.NoBackground))
             QoLBar.Config.Save();

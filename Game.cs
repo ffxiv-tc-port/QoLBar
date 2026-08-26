@@ -45,19 +45,93 @@ public unsafe class Game
         }
     }
 
-    public static DateTimeOffset EorzeaTime => DateTimeOffset.FromUnixTimeSeconds(Framework.Instance()->ClientTime.EorzeaTime);
+    // 🔴 Framework.Instance() 與下面 EventFramework 同理,是 [StaticAddress(..., isPointer: true)]
+    //    —— 讀「指標的位址」再解參考一層,登入前那個槽就是 0,回的是 null 不是擲例外。
+    //    裸解參考 null 原生指標是攔不到的 AVE(try/catch 無效)。
+    //    📌 回 null 而不是退回 UnixEpoch:退回紀元會變成「00:00」,可能剛好落進使用者設定的
+    //    時段條件裡而靜默成立,那比「條件不成立」難察覺得多。
+    public static DateTimeOffset? EorzeaTime
+    {
+        get
+        {
+            var framework = Framework.Instance();
+            return framework == null
+                ? null
+                : DateTimeOffset.FromUnixTimeSeconds(framework->ClientTime.EorzeaTime);
+        }
+    }
 
-    public static bool IsInExplorerMode => (EventFramework.Instance()->GetInstanceContentDirector()->ContentFlags & 1) != 0;
+    // 兩層都會是 null,而且都是常態不是異常:
+    //   EventFramework.Instance() 是 [StaticAddress(..., isPointer: true)] —— 讀「指標的位址」,登入前那個槽就是 0。
+    //   GetInstanceContentDirector() 不在副本裡時回 null —— CS 自己的 GetInstanceContentDirector<T>() 就先判過空才用。
+    // 解參考 null 原生指標是攔不到的 AVE(try/catch 無效),而這支被 ExplorerModeCondition.Check 每次判定條件時呼叫。
+    // 讀不到一律回 false(＝不在探索模式),對「不在副本裡」來說本來就是正確答案。
+    public static bool IsInExplorerMode
+    {
+        get
+        {
+            var eventFramework = EventFramework.Instance();
+            if (eventFramework == null)
+                return false;
+            var director = eventFramework->GetInstanceContentDirector();
+            return director != null && (director->ContentFlags & 1) != 0;
+        }
+    }
 
-    public static UIModule* uiModule;
+    // 🔴 下面這五個原本是 static 欄位，由 Initialize() 在外掛載入時解析一次就存著，
+    //    之後跨幀、跨換區、跨登出重登都沿用同一個值，沒有任何一條路徑會重查或歸零 ——
+    //    那正是艦隊紅線「絕不跨幀保存原生指標」講的形狀。登出回標題畫面時整棵 UIModule
+    //    樹會被拆掉，留在欄位裡的舊指標之後任何一次解參考都是 AccessViolationException
+    //    （corrupted-state exception，try/catch 與 HookSafety.ExecuteSafe 都攔不到）。
+    // ⇒ 全部改成每次存取重查的屬性。取法直接用 ClientStructs 自帶的 Instance()，它們逐字
+    //    就是「上一層為 null 就回 null」的判空鏈（UIModule.Instance() → Framework.Instance()
+    //    （[StaticAddress(..., isPointer: true)]，可能為 null）→ GetUIModule()）。
+    //    重查成本是幾個 vtable 跳轉：GetRaptureShellModule(9) / GetRaptureMacroModule(12) /
+    //    GetAddonConfig(19) / GetAgentModule(37) 全是 [VirtualFunction]，不掃特徵碼。
+    // ⚠️ 呼叫端的寫法完全不用改（名稱與型別都保持原樣），但它們現在拿得到 null，
+    //    所以本檔每一個消費點都補上了判空。
+    public static UIModule* uiModule => UIModule.Instance();
+    public static AgentInventoryContext* agentInventoryContext => AgentInventoryContext.Instance();
+    public static AddonConfig* addonConfig => AddonConfig.Instance();
 
-    public static bool IsGameTextInputActive => uiModule->GetRaptureAtkModule()->AtkModule.IsTextInputActive();
-    public static bool IsMacroRunning => raptureShellModule->MacroCurrentLine >= 0;
+    /// <summary>遊戲自己的文字輸入框是不是正在輸入中。取不到 UI 模組（標題畫面／讀取畫面）
+    /// 時回 false —— 那個狀態下遊戲裡根本沒有輸入框，回 false 與實情一致。</summary>
+    public static bool IsGameTextInputActive
+    {
+        get
+        {
+            var ui = uiModule;
+            if (ui == null) return false;
+            var atkModule = ui->GetRaptureAtkModule();
+            return atkModule != null && atkModule->AtkModule.IsTextInputActive();
+        }
+    }
 
-    public static AgentInventoryContext* agentInventoryContext;
+    public static bool IsMacroRunning
+    {
+        get
+        {
+            var shell = raptureShellModule;
+            return shell != null && shell->MacroCurrentLine >= 0;
+        }
+    }
 
-    public static AddonConfig* addonConfig;
-    public static int CurrentHUDLayout => addonConfig->ActiveDataSet->CurrentHudLayout;
+    /// <summary>「HUD 配置編號取不到」的哨兵值。0 是合法的第 1 組配置，取不到時回 0
+    /// 會讓「目前 HUD 配置＝1」這個條件在標題畫面誤判為成立，所以用 -1。</summary>
+    public const int UnknownHUDLayout = -1;
+
+    /// <summary>目前的 HUD 配置編號（0..3）。取不到時回 <see cref="UnknownHUDLayout"/>。</summary>
+    public static int CurrentHUDLayout
+    {
+        get
+        {
+            var cfg = addonConfig;
+            if (cfg == null) return UnknownHUDLayout;
+            // ActiveDataSet 是欄位 +0x58 的指標，設定檔還沒載入完成時是 null。
+            var data = cfg->ActiveDataSet;
+            return data == null ? UnknownHUDLayout : data->CurrentHudLayout;
+        }
+    }
 
     // Command Execution
     public delegate void ProcessChatBoxDelegate(UIModule* uiModule, nint message, nint unused, byte a4);
@@ -72,8 +146,9 @@ public unsafe class Game
     public delegate void ExecuteMacroDelegate(RaptureShellModule* raptureShellModule, nint macro);
     [Signature("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8D 4E ?? 49 8B D6", Fallibility = Fallibility.Fallible)]
     public static Hook<ExecuteMacroDelegate>? ExecuteMacroHook;
-    public static RaptureShellModule* raptureShellModule;
-    public static RaptureMacroModule* raptureMacroModule;
+    // 同上：改成每次存取重查，不再是 Initialize() 存下來的跨幀指標。
+    public static RaptureShellModule* raptureShellModule => RaptureShellModule.Instance();
+    public static RaptureMacroModule* raptureMacroModule => RaptureMacroModule.Instance();
 
     public static nint numCopiedMacroLinesPtr = nint.Zero;
     public static byte NumCopiedMacroLines
@@ -107,11 +182,20 @@ public unsafe class Game
 
     public static void Initialize()
     {
-        uiModule = Framework.Instance()->GetUIModule();
+        // 🔴 Framework.Instance()（isPointer:true）與 GetUIModule() 都可能回 null。
+        //    這裡是外掛載入時的一次性初始化,失敗語意＝「這個外掛沒有辦法運作」,
+        //    所以擲一個訊息明確的受管理例外,而不是讓下面三行對 null 裸解參考
+        //    ——後者是攔不到的 AVE,會整個遊戲閃退且堆疊指不到這裡。
+        //    呼叫端 QoLBar.cs:70 已經包在 try/catch 裡,會記錄 "Failed loading QoLBar!"
+        //    並讓 pluginReady 維持 false,這是既有的失敗路徑,不需要新增處理。
+        //    ⚠️ 這段現在只是「載入時的就緒檢查」，不再把任何指標存起來 ——
+        //       上面那五個取得器每次存取都會自己重查。
+        var framework = Framework.Instance();
+        if (framework == null)
+            throw new InvalidOperationException("Game.Initialize: Framework.Instance() 回 null,遊戲尚未就緒。");
 
-        raptureShellModule = uiModule->GetRaptureShellModule();
-        raptureMacroModule = uiModule->GetRaptureMacroModule();
-        addonConfig = uiModule->GetAddonConfig();
+        if (framework->GetUIModule() == null)
+            throw new InvalidOperationException("Game.Initialize: UIModule 回 null,遊戲尚未就緒。");
 
         // TODO change back to static whenever support is added
         //SignatureHelper.Initialise(typeof(Game));
@@ -119,7 +203,6 @@ public unsafe class Game
 
         numCopiedMacroLinesPtr = DalamudApi.SigScanner.ScanText("48 8D 77 70 BF ?? 00 00 00") + 0x5;
         numExecutedMacroLinesPtr = DalamudApi.SigScanner.ScanText("41 83 F8 ?? 0F 8D ?? ?? ?? ?? 49 6B C8 68") + 0x3;
-        agentInventoryContext = (AgentInventoryContext*)uiModule->GetAgentModule()->GetAgentByInternalId(AgentId.InventoryContext);
         usables = DalamudApi.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Item>().Where(i => i.ItemAction.RowId > 0).ToDictionary(i => i.RowId, i => i.Name.ToString().ToLower())
             .Concat(DalamudApi.DataManager.GetExcelSheet<Lumina.Excel.Sheets.EventItem>().Where(i => i.Action.RowId > 0).ToDictionary(i => i.RowId, i => i.Name.ToString().ToLower()))
             .ToDictionary(kv => kv.Key, kv => kv.Value);
@@ -132,7 +215,7 @@ public unsafe class Game
     {
         NumCopiedMacroLines = Macro.numLines;
         NumExecutedMacroLines = Macro.numLines;
-        ExecuteMacroHook!.Original(raptureShellModule, macro);
+        ExecuteMacroHook!.OriginalDisposeSafe(raptureShellModule, macro);
     }
 
     public static void ReadyCommand()
@@ -193,15 +276,22 @@ public unsafe class Game
                             {
                                 if (macro is >= 0 and < 200)
                                 {
+                                    // 兩個模組都改成重查，取不到就走既有的 catch
+                                    //（會印「Failed running macro」），不要對 null 取位址。
+                                    var macroModule = raptureMacroModule;
+                                    var shell = raptureShellModule;
+                                    if (macroModule == null || shell == null)
+                                        throw new InvalidOperationException("RaptureMacroModule/RaptureShellModule is unavailable.");
+
                                     if (macro < 100)
                                     {
-                                        fixed (void* ptr = &raptureMacroModule->Individual[macro])
-                                            ExecuteMacroHook.Original(raptureShellModule, (nint)ptr);
+                                        fixed (void* ptr = &macroModule->Individual[macro])
+                                            ExecuteMacroHook.OriginalDisposeSafe(shell, (nint)ptr);
                                     }
                                     else
                                     {
-                                        fixed (void* ptr = &raptureMacroModule->Shared[macro - 100])
-                                            ExecuteMacroHook.Original(raptureShellModule, (nint)ptr);
+                                        fixed (void* ptr = &macroModule->Shared[macro - 100])
+                                            ExecuteMacroHook.OriginalDisposeSafe(shell, (nint)ptr);
                                     }
                                 }
                                 else
@@ -276,7 +366,13 @@ public unsafe class Game
                 if (chat)
                     chatQueueTimer = 1f / 6f;
 
-                ProcessChatBox(uiModule, stringPtr, nint.Zero, 0);
+                // 取不到 UI 模組就走既有的 catch（會印「Failed injecting command」），
+                // 不要把 null 當 this 指標交給原生函式。
+                var ui = uiModule;
+                if (ui == null)
+                    throw new InvalidOperationException("UIModule is unavailable.");
+
+                ProcessChatBox(ui, stringPtr, nint.Zero, 0);
             }
             else
                 chatQueue.Enqueue(command);
@@ -299,7 +395,11 @@ public unsafe class Game
             stringPtr = Marshal.AllocHGlobal(UTF8String.size);
             using var str = new UTF8String(stringPtr, command.Substring(0, split));
             Marshal.StructureToPtr(str, stringPtr, false);
-            handler = GetCommandHandler(raptureShellModule, stringPtr, nint.Zero);
+            // 取不到就讓 handler 維持 0，下面的 switch 會落在 _ => false，
+            // 也就是「不是聊天發言指令」—— 這是保守的預設方向。
+            var shell = raptureShellModule;
+            if (shell != null)
+                handler = GetCommandHandler(shell, stringPtr, nint.Zero);
         }
         catch { }
 
@@ -336,7 +436,11 @@ public unsafe class Game
             NumCopiedMacroLines = count;
             NumExecutedMacroLines = count;
 
-            ExecuteMacroHook.Original(raptureShellModule, macroPtr);
+            var shell = raptureShellModule;
+            if (shell == null)
+                throw new InvalidOperationException("RaptureShellModule is unavailable.");
+
+            ExecuteMacroHook.OriginalDisposeSafe(shell, macroPtr);
 
             NumCopiedMacroLines = Macro.numLines;
         }
@@ -350,9 +454,22 @@ public unsafe class Game
 
     public static AtkUnitBase* GetFocusedAddon()
     {
-        var units = AtkStage.Instance()->RaptureAtkUnitManager->AtkUnitManager.FocusedUnitsList;
-        var count = units.Count;
-        return count == 0 ? null : units.Entries[count - 1].Value;
+        // AtkStage.Instance() 是 [StaticAddress(..., isPointer: true)]：特徵碼沒解析到才會擲例外，
+        // 解析到但遊戲還沒建好 AtkStage 時回傳的是 null 指標。RaptureAtkUnitManager 則是純指標欄位。
+        // 兩者任一為 null 時裸解參考產生的是 try/catch 攔不到的 AccessViolationException。
+        var stage = AtkStage.Instance();
+        if (stage == null) return null;
+
+        var unitManager = stage->RaptureAtkUnitManager;
+        if (unitManager == null) return null;
+
+        var entries = unitManager->AtkUnitManager.FocusedUnitsList.Entries;
+        int count = unitManager->AtkUnitManager.FocusedUnitsList.Count;
+        // Count 是 ushort 而 Entries 固定長 256，理論上不該超出；超出時取不到就回 null（fail-closed），
+        // 不要讓 UI 繪製路徑丟 IndexOutOfRangeException。
+        if (count <= 0 || count > entries.Length) return null;
+
+        return entries[count - 1].Value;
     }
 
     public static void UseItem(uint id)
@@ -377,7 +494,12 @@ public unsafe class Game
             }
         }
 
-        agentInventoryContext->UseItem(id);
+        // 未登入時代理人不存在。與本函式開頭那個「不是可用道具就直接返回」同一個語意：
+        // 安靜返回（那個狀態下按下道具按鈕本來就不該有動作）。
+        var agent = agentInventoryContext;
+        if (agent == null) return;
+
+        agent->UseItem(id);
     }
 
     public static void UseItem(string name)

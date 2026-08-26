@@ -134,7 +134,7 @@ public class CharacterCondition : ICondition, IDrawableCondition, IArgCondition,
     public string ID => "c";
     public string ConditionName => "Character ID".Loc();
     public int DisplayPriority => 0;
-    public bool Check(dynamic arg) => (ulong)arg == DalamudApi.ClientState.LocalContentId;
+    public bool Check(dynamic arg) => (ulong)arg == DalamudApi.PlayerState.ContentId;
     public string GetTooltip(CndCfg cndCfg) => $"ID: {cndCfg.Arg}";
     public string GetSelectableTooltip(CndCfg cndCfg) => "Selecting this will assign the current character's ID to this condition.".Loc();
     public void Draw(CndCfg cndCfg)
@@ -152,7 +152,7 @@ public class CharacterCondition : ICondition, IDrawableCondition, IArgCondition,
 
         ImGuiEx.SetItemTooltip("If this condition has no data when imported,\nit will automatically be assigned.".Loc());
     }
-    public dynamic GetDefaultArg(CndCfg cndCfg) => DalamudApi.ClientState.LocalContentId;
+    public dynamic GetDefaultArg(CndCfg cndCfg) => DalamudApi.PlayerState.ContentId;
     public void OnImport(CndCfg cndCfg)
     {
         if (cndCfg.Arg == 0)
@@ -193,7 +193,7 @@ public class WeaponDrawnCondition : ICondition
     public string ID => "wd";
     public string ConditionName => "Weapon Drawn".Loc();
     public int DisplayPriority => 0;
-    public bool Check(dynamic arg) => DalamudApi.ClientState.LocalPlayer is { } player && (player.StatusFlags & StatusFlags.WeaponOut) != 0;
+    public bool Check(dynamic arg) => DalamudApi.ObjectTable.LocalPlayer is { } player && (player.StatusFlags & StatusFlags.WeaponOut) != 0;
 }
 
 [MiscCondition]
@@ -205,7 +205,11 @@ public class EorzeaTimespanCondition : ICondition, IDrawableCondition, IArgCondi
     private static bool CheckEorzeaTimeCondition(string arg)
     {
         var reg = Regex.Match(arg, MiscConditionHelpers.TimespanRegex);
-        return reg.Success && MiscConditionHelpers.IsTimeBetween(Game.EorzeaTime.ToString("HH:mm"), reg.Groups[1].Value, reg.Groups[2].Value);
+        // Game.EorzeaTime 取不到（Framework 尚未就緒）時回 null ⇒ 條件不成立。
+        // 讀不到時間就不讓時段條件成立，方向與其他條件的「讀不到 = false」一致。
+        return reg.Success
+            && Game.EorzeaTime is { } eorzeaTime
+            && MiscConditionHelpers.IsTimeBetween(eorzeaTime.ToString("HH:mm"), reg.Groups[1].Value, reg.Groups[2].Value);
     }
     public bool Check(dynamic arg) => arg is string range && CheckEorzeaTimeCondition(range);
     public string GetTooltip(CndCfg cndCfg) => null;
@@ -247,7 +251,9 @@ public class HUDLayoutCondition : ICondition, IDrawableCondition, IArgCondition
         if (ImGui.SliderInt("##HUDLayout", ref _, 1, 4))
             cndCfg.Arg = _ - 1;
     }
-    public dynamic GetDefaultArg(CndCfg cndCfg) => Game.CurrentHUDLayout;
+    // 取不到目前配置時 CurrentHUDLayout 是 -1（哨兵值）。Check 拿到 -1 會落在
+    // 「不成立」是對的，但這裡是要寫進使用者設定的預設值，夾回 0 才不會存進哨兵值。
+    public dynamic GetDefaultArg(CndCfg cndCfg) => Math.Max(0, Game.CurrentHUDLayout);
 }
 
 [MiscCondition]
@@ -274,7 +280,12 @@ public class PartyCondition : ICondition, IDrawableCondition, IArgCondition
     public string ID => "pt";
     public string ConditionName => "# Party Member Exists".Loc();
     public int DisplayPriority => 0;
-    public unsafe bool Check(dynamic arg) => PronounModule.Instance()->ResolvePlaceholder($"<{arg}>", 0, 0) != null;
+    // PronounModule.Instance() 是手寫包裝（UIModule 為 null 時回 null），未登入／登出瞬間會是 null。
+    public unsafe bool Check(dynamic arg)
+    {
+        var pronounModule = PronounModule.Instance();
+        return pronounModule != null && pronounModule->ResolvePlaceholder($"<{arg}>", 0, 0) != null;
+    }
     public string GetTooltip(CndCfg cndCfg) => "This will only return true if the party member exists in the current area.".Loc();
     public string GetSelectableTooltip(CndCfg cndCfg) => null;
     public void Draw(CndCfg cndCfg)
@@ -292,7 +303,11 @@ public class PetCondition : ICondition
     public string ID => "pe";
     public string ConditionName => "Pet Exists".Loc();
     public int DisplayPriority => 0;
-    public unsafe bool Check(dynamic arg) => PronounModule.Instance()->ResolvePlaceholder("<pet>", 0, 0) != null;
+    public unsafe bool Check(dynamic arg)
+    {
+        var pronounModule = PronounModule.Instance();
+        return pronounModule != null && pronounModule->ResolvePlaceholder("<pet>", 0, 0) != null;
+    }
 }
 
 [MiscCondition]
@@ -301,7 +316,11 @@ public class ChocoboCondition : ICondition
     public string ID => "ce";
     public string ConditionName => "Chocobo Exists".Loc();
     public int DisplayPriority => 0;
-    public unsafe bool Check(dynamic arg) => PronounModule.Instance()->ResolvePlaceholder("<c>", 0, 0) != null;
+    public unsafe bool Check(dynamic arg)
+    {
+        var pronounModule = PronounModule.Instance();
+        return pronounModule != null && pronounModule->ResolvePlaceholder("<c>", 0, 0) != null;
+    }
 }
 
 [MiscCondition]
