@@ -21,8 +21,12 @@ public static class IPC
         GetVersionProvider.RegisterFunc(() => QoLBar.Config.PluginVersion);
         GetIPCVersionProvider.RegisterFunc(() => IPCVersion);
         ImportBarProvider.RegisterAction(import => QoLBar.Plugin.ui.ImportBar(import));
-        GetConditionSetsProvider.RegisterFunc(() => QoLBar.Config.CndSetCfgs.Select(s => s.Name).ToArray());
-        CheckConditionSetProvider.RegisterFunc(i => i >= 0 && i < QoLBar.Config.CndSetCfgs.Count && ConditionManager.CheckConditionSet(i));
+        // 🔴 這兩個端點跑在呼叫端外掛的執行緒上，所以一律只讀 framework 執行緒每幀發布的
+        // 不可變快照 —— 不走訪 Config.CndSetCfgs（framework 執行緒會增刪它），
+        // 也不呼叫 ConditionManager.CheckConditionSet（那會寫四個裸字典，並在呼叫端的
+        // 執行緒上執行帶原生記憶體讀取的 ICondition.Check）。詳見 ConditionSetSnapshot。
+        GetConditionSetsProvider.RegisterFunc(ConditionManager.GetConditionSetNamesForIpc);
+        CheckConditionSetProvider.RegisterFunc(ConditionManager.CheckConditionSetForIpc);
     }
 
     public static void Dispose()

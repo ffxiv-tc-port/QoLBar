@@ -174,6 +174,11 @@ public class QoLBar : IDalamudPlugin
         Keybind.Run();
         Keybind.SetupHotkeys(ui.bars);
         ConditionManager.UpdateCache();
+
+        // 把這一幀已經算好的條件組結果發布成不可變快照，給 IPC 端點讀（它們跑在呼叫端外掛的
+        // 執行緒上）。刻意放在 UpdateCache() 之後、而且刻意不主動評估任何東西 —— 詳見
+        // ConditionManager.PublishSnapshot 的說明。
+        ConditionManager.PublishSnapshot();
     }
 
     private void Draw()
