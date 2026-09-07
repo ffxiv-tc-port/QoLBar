@@ -62,7 +62,10 @@ public class BarConfig
 
     public BarCfg Upgrade()
     {
-        var window = ImGuiHelpers.MainViewport.Size;
+        // 🔴 這一整支 Upgrade 從 IPC 端點 QoLBar.ImportBar 進得來（跑在呼叫端外掛的執行緒上），
+        // 所以不可以直接讀 ImGui 狀態 —— 改讀繪製執行緒每幀更新的快取。
+        // ImGuiHelpers.GlobalScale 是 Dalamud 的 static float 屬性、不是 ImGui 呼叫，維持原樣。
+        var window = ImGuiEx.FrameMainViewportSize;
         var oldPos = Position / window;
 
         var oldOffset = Offset * ImGuiHelpers.GlobalScale;
@@ -71,10 +74,10 @@ public class BarConfig
         switch (Alignment)
         {
             case BarAlign.LeftOrTop:
-                add = 22 + ImGui.GetFontSize();
+                add = 22 + ImGuiEx.FrameFontSize;
                 break;
             case BarAlign.RightOrBottom:
-                add = -22 - ImGui.GetFontSize();
+                add = -22 - ImGuiEx.FrameFontSize;
                 break;
         }
 
@@ -198,7 +201,10 @@ public class Shortcut
             Hotkey = Hotkey,
             KeyPassthrough = KeyPassthrough,
             Mode = (ShCfg.ShortcutMode)Mode,
-            Color = ImGui.ColorConvertFloat4ToU32(IconTint),
+            // 同上：這支也從 ImportBar 的 IPC 路徑進得來。ImGui.ColorConvertFloat4ToU32
+            // 本身是純數學（不碰 context），但它是一次進原生 cimgui 的 P/Invoke，
+            // 換成語意相同的本地實作可以讓這條路徑完全不碰 ImGui。
+            Color = ImGuiEx.PackColorFloat4ToU32(IconTint),
             IconZoom = IconZoom,
             IconOffset = new[] { IconOffset.X, IconOffset.Y },
             CategoryWidth = CategoryWidth,

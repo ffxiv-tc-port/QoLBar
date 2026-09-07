@@ -41,6 +41,159 @@ public static class ImGuiEx
 
     public static float GetFontScale() => curScale;
 
+    #region 繪製執行緒的 ImGui 狀態快取
+
+    // 🔴🔴 為什麼需要這一區。
+    // IPC 端點 QoLBar.ImportBar 跑在「呼叫端外掛的執行緒」上，而它可達的
+    // Legacy.BarConfig.Upgrade／Legacy.Shortcut.Upgrade（匯入舊版設定字串時的升級路徑）
+    // 原本會直接讀 ImGui 狀態：ImGui.GetFontSize() 讀的是全域 ImGui context 裡
+    // 繪製執行緒每幀在改的欄位，ImGuiHelpers.MainViewport.Size 則是解參一個原生
+    // ImGuiViewport 結構、讀它每幀被更新的 Size。從別的執行緒讀＝與繪製執行緒並行，
+    // 拿到的可能是撕裂或半更新的值（X 來自這一幀、Y 來自上一幀）。
+    //
+    // 正解＝繪製路徑每幀把要用的值抄一份下來，非繪製路徑只讀這份快取。
+    // 📌 刻意不快取 ImGuiHelpers.GlobalScale：那是 Dalamud 自己的 static float 屬性，
+    //    不是 ImGui 呼叫、不解參任何原生結構，跨執行緒讀最多讀到上一幀的值，所以留著沒動。
+
+    // volatile 是為了不讓 JIT 把讀取提到迴圈外／快取進暫存器；三個欄位各自是 4 bytes，
+    // 讀寫本身在 .NET 上就是原子的（不會讀到半個 float）。
+    private static volatile float frameFontSize;
+    private static volatile float frameViewportWidth;
+    private static volatile float frameViewportHeight;
+    private static volatile bool frameCacheFallbackLogged;
+
+    /// <summary>
+    /// 還沒畫過任何一幀就有人透過 IPC 匯入時，<see cref="FrameFontSize"/> 回傳的值。
+    /// 取本外掛自己的 <see cref="QoLBar.DefaultFontSize"/>（17），因為 Dalamud 預設字型就是 17px；
+    /// ImGui 自己的預設 13f 在這裡反而不符合實際會畫出來的樣子。
+    /// </summary>
+    public const float FallbackFontSize = QoLBar.DefaultFontSize;
+
+    /// <summary>
+    /// 同上，<see cref="FrameMainViewportSize"/> 的保底值。這個純粹是猜的（1920x1080），
+    /// 只有「外掛剛載入、ImGui 還沒畫過任何一幀，而別的外掛就已經呼叫 ImportBar」才會用到。
+    /// 真的走到時會寫一行 Information 進 log。
+    /// </summary>
+    public static readonly Vector2 FallbackMainViewportSize = new(1920, 1080);
+
+    /// <summary>每幀由 <c>QoLBar.Draw</c>（UiBuilder.Draw 回呼）在 ImGui 幀內呼叫。</summary>
+    /// <remarks>
+    /// 📌 取樣點刻意放在 <c>QoLBar.Draw</c> 的最前面：那裡沒有推任何自訂字型
+    /// （<c>QoLBar.Font.Push</c>／<c>PushFontSize</c> 都發生在 BarUI／ShortcutUI 更裡層），
+    /// 與原本唯一會在繪製路徑上呼叫 <c>Legacy.Upgrade</c> 的地方
+    /// （設定視窗 Bar Manager 分頁的 Import 按鈕）看到的字型狀態相同。
+    /// </remarks>
+    public static void UpdateFrameCache()
+    {
+        frameFontSize = ImGui.GetFontSize();
+        var size = ImGuiHelpers.MainViewport.Size;
+        frameViewportWidth = size.X;
+        frameViewportHeight = size.Y;
+
+#if DEBUG
+        VerifyColorPackOnce();
+#endif
+    }
+
+    /// <summary>上一幀的 <c>ImGui.GetFontSize()</c>。可以從任何執行緒讀。</summary>
+    public static float FrameFontSize
+    {
+        get
+        {
+            var v = frameFontSize;
+            if (v > 0) return v;
+            LogFallbackOnce();
+            return FallbackFontSize;
+        }
+    }
+
+    /// <summary>上一幀的 <c>ImGuiHelpers.MainViewport.Size</c>。可以從任何執行緒讀。</summary>
+    public static Vector2 FrameMainViewportSize
+    {
+        get
+        {
+            var w = frameViewportWidth;
+            var h = frameViewportHeight;
+            if (w > 0 && h > 0) return new Vector2(w, h);
+            LogFallbackOnce();
+            return FallbackMainViewportSize;
+        }
+    }
+
+    // 只寫一次，避免洗 log。競態最多讓它寫兩行，無害。
+    private static void LogFallbackOnce()
+    {
+        if (frameCacheFallbackLogged) return;
+        frameCacheFallbackLogged = true;
+        DalamudApi.LogInfo("[QoL Bar] ImGui frame cache was read before the first frame was drawn; "
+                           + $"falling back to font size {FallbackFontSize} and viewport {FallbackMainViewportSize}. "
+                           + "An imported legacy bar may end up slightly offset - please report this if you see it.");
+    }
+
+    /// <summary>
+    /// <c>ImGui.ColorConvertFloat4ToU32</c> 的等價實作（純數學，不碰 ImGui context）。
+    /// </summary>
+    /// <remarks>
+    /// 逐字對照 <c>lib/cimgui/imgui/imgui.cpp:2125-2133</c>：
+    /// <code>
+    /// out  = ((ImU32)IM_F32_TO_INT8_SAT(in.x)) &lt;&lt; IM_COL32_R_SHIFT;   // R_SHIFT = 0
+    /// out |= ((ImU32)IM_F32_TO_INT8_SAT(in.y)) &lt;&lt; IM_COL32_G_SHIFT;   // G_SHIFT = 8
+    /// out |= ((ImU32)IM_F32_TO_INT8_SAT(in.z)) &lt;&lt; IM_COL32_B_SHIFT;   // B_SHIFT = 16
+    /// out |= ((ImU32)IM_F32_TO_INT8_SAT(in.w)) &lt;&lt; IM_COL32_A_SHIFT;   // A_SHIFT = 24
+    /// </code>
+    /// 位移值取的是 <c>imgui.h:2456-2461</c> 的非 BGRA 分支 —— <c>imconfig.h:56</c> 的
+    /// <c>IMGUI_USE_BGRA_PACKED_COLOR</c> 是註解掉的，整份 cimgui 也沒有別的地方定義它。
+    /// <para>
+    /// ⚠️ 輸入是 NaN 時兩邊會不一致（C++ 那邊是 UB，C# 的 float→int 轉換給 0）。
+    /// 這裡刻意不特別處理，維持與原本相同的「未定義」語意。
+    /// </para>
+    /// </remarks>
+    public static uint PackColorFloat4ToU32(Vector4 color)
+        => F32ToInt8Sat(color.X)
+           | (F32ToInt8Sat(color.Y) << 8)
+           | (F32ToInt8Sat(color.Z) << 16)
+           | (F32ToInt8Sat(color.W) << 24);
+
+    // IM_F32_TO_INT8_SAT(_VAL) ((int)(ImSaturate(_VAL) * 255.0f + 0.5f))   imgui_internal.h:253
+    // ImSaturate(f) ((f < 0.0f) ? 0.0f : (f > 1.0f) ? 1.0f : f)            imgui_internal.h:459
+    private static uint F32ToInt8Sat(float value)
+        => (uint)(int)((value < 0f ? 0f : value > 1f ? 1f : value) * 255f + 0.5f);
+
+#if DEBUG
+    private static bool colorPackVerified;
+
+    // 兩向對照：在繪製執行緒上（此時呼叫 ImGui 是合法的）拿原函式與本地實作各算一次。
+    // 只跑一次；不相符就寫 Error。Release 建置完全沒有這段，也就完全不參照 ImGui 的那支函式。
+    private static void VerifyColorPackOnce()
+    {
+        if (colorPackVerified) return;
+        colorPackVerified = true;
+
+        Vector4[] samples =
+        {
+            Vector4.One,                        // 全白不透明
+            Vector4.Zero,                       // 全 0
+            new(1f, 0f, 0f, 1f),                // 純紅（驗 R/B 位移沒有互換）
+            new(0f, 0f, 1f, 1f),                // 純藍
+            new(0.5f, 0.25f, 0.75f, 0.125f),    // 非整數，驗 +0.5f 進位
+            new(1f, 1f, 1f, 3f),                // W > 1，Legacy.cs:214 真的會遇到（飽和到 255）
+            new(-0.5f, 1.5f, 0.5f, 0f),         // 上下界都超出，驗 ImSaturate
+        };
+
+        foreach (var v in samples)
+        {
+            var ours = PackColorFloat4ToU32(v);
+            var imgui = ImGui.ColorConvertFloat4ToU32(v);
+            if (ours != imgui)
+                DalamudApi.LogError($"PackColorFloat4ToU32 mismatch for {v}: ours=0x{ours:X8} imgui=0x{imgui:X8}");
+        }
+
+        DalamudApi.LogInfo($"PackColorFloat4ToU32 verified against ImGui on {samples.Length} samples.");
+    }
+#endif
+
+    #endregion
+
     public static void ClampWindowPosToViewport()
     {
         var viewport = ImGui.GetWindowViewport();

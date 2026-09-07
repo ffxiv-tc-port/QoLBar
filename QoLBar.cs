@@ -178,6 +178,11 @@ public class QoLBar : IDalamudPlugin
 
     private void Draw()
     {
+        // 把這一幀的 ImGui 狀態抄一份，給非繪製執行緒的路徑讀（見 ImGuiEx 的「繪製執行緒的
+        // ImGui 狀態快取」一節）。刻意放在最前面，也刻意放在 pluginReady 的早退之前 ——
+        // 別的外掛可以在 pluginReady 之前就呼叫 IPC 端點。
+        ImGuiEx.UpdateFrameCache();
+
         if (_addUserIcons)
             AddUserIcons(ref _addUserIcons);
 
