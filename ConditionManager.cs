@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -148,6 +149,23 @@ public static class ConditionManager
     private const long SnapshotMissLogIntervalMs = 10_000;
     private static long lastSnapshotMissLog = -1;
 
+    // 「最近有人透過 IPC 問過第 i 組」→ 上次被問的 Environment.TickCount64。
+    // 🔴 寫入端是 IPC 呼叫端的執行緒、讀取與清除端是 framework 執行緒 ⇒ 必須是 ConcurrentDictionary。
+    // 上限只是防呆：呼叫端若一直丟不存在的索引，這張表也不會無限長；超過上限就不再收新的鍵
+    // （ContainsKey/Count/索引指派三步不是原子的，所以實際筆數可能短暫略高於上限，無害）。
+    private static readonly ConcurrentDictionary<int, long> ipcWarmRequests = new();
+    private const long IpcWarmTtlMs = 5_000;
+    private const int MaxIpcWarmEntries = 64;
+
+    // 快照裡的一格若比這個秒數更舊就當成 Unknown。
+    // 🔑 這個數字必須遠大於 CheckConditionSet 自己的 0.1 秒求值 TTL：被任何列參照的條件組
+    // 每幀都會經由 BarUI.IsVisible 走一次 CheckConditionSet（0.1 秒內是快取命中），
+    // 所以它們的 time 至少每 0.1 秒更新一次，永遠不會因為這道閘門變成 Unknown。
+    // 它擋的是另一種情況：預熱停止之後，那一格會停在最後算出來的值 —— 沒有這道閘門的話
+    // 那個值會一直凍在那裡，消費端幾分鐘後再問一次會拿到一個很舊卻看起來正常的答案，
+    // 而且完全沒有 log。有了它，預熱停止約一秒後那一格回到 Unknown ⇒ 回 false ＋ Information。
+    private const float SnapshotStaleSeconds = 1.0f;
+
     /// <summary>目前已發布的快照。<b>任何執行緒都可以讀。</b></summary>
     public static ConditionSetSnapshot Snapshot => Volatile.Read(ref publishedSnapshot);
 
@@ -170,17 +188,22 @@ public static class ConditionManager
         var sets = QoLBar.Config.CndSetCfgs;
         var n = sets.Count;
 
+        // 先把「最近被 IPC 問過」的條件組在這條（安全的）執行緒上算一次，結果會落進
+        // conditionSetCache，下面建快照時就抄得到。
+        WarmIpcRequestedSets(sets, n);
+
         if (snapshotStates.Length != n)
         {
             snapshotStates = new byte[n];
             snapshotNames = new string[n];
         }
 
+        var now = QoLBar.RunTime;
         for (var i = 0; i < n; i++)
         {
             var set = sets[i];
             snapshotNames[i] = set.Name;
-            snapshotStates[i] = conditionSetCache.TryGetValue(set, out var c)
+            snapshotStates[i] = conditionSetCache.TryGetValue(set, out var c) && now - c.time <= SnapshotStaleSeconds
                 ? (c.prev ? ConditionSetSnapshot.KnownTrue : ConditionSetSnapshot.KnownFalse)
                 : ConditionSetSnapshot.Unknown;
         }
@@ -190,6 +213,46 @@ public static class ConditionManager
 
         Volatile.Write(ref publishedSnapshot,
             new ConditionSetSnapshot((byte[])snapshotStates.Clone(), (string[])snapshotNames.Clone()));
+    }
+
+    /// <summary>
+    /// 在 framework 執行緒上評估「最近 <see cref="IpcWarmTtlMs"/> 毫秒內被 IPC 問過」的條件組。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 這是為了讓「沒有任何列參照、只有別的外掛在問」的條件組也能拿到真答案：
+    /// 第一次查詢仍然 miss（回 <see langword="false"/> ＋ 一則 Information），但它會登記需求，
+    /// 下一幀這裡就會把它算出來，第二次查詢起就是真答案。
+    /// <para>
+    /// 🔴 求值刻意放在<b>這條執行緒</b>：<c>ICondition.Check</c> 裡有原生指標解參
+    /// （<c>PronounModule.Instance()-&gt;</c>、<c>TerritoryInfo.Instance()-&gt;</c>、<c>AtkStage</c>）。
+    /// </para>
+    /// <para>
+    /// 📌 對「被列參照的條件組」零額外成本：<see cref="CheckConditionSet(CndSetCfg)"/> 自己有
+    /// 0.1 秒的求值 TTL，這一幀繪製路徑已經算過的話這裡只是一次字典命中。
+    /// </para>
+    /// <para>
+    /// 📌 沒有另設每幀上限：能進到這張表的鍵最多 <see cref="MaxIpcWarmEntries"/> 個，
+    /// 而且逾時就被清掉。
+    /// </para>
+    /// </remarks>
+    private static void WarmIpcRequestedSets(List<CndSetCfg> sets, int n)
+    {
+        if (ipcWarmRequests.IsEmpty) return;
+
+        var now = Environment.TickCount64;
+        foreach (var kv in ipcWarmRequests)
+        {
+            if (now - kv.Value >= IpcWarmTtlMs)
+            {
+                ipcWarmRequests.TryRemove(kv.Key, out _);
+                continue;
+            }
+
+            var i = kv.Key;
+            if (i < 0 || i >= n) continue;
+
+            CheckConditionSet(sets[i]);
+        }
     }
 
     /// <summary>IPC 端點 <c>QoLBar.CheckConditionSet</c> 的實作。<b>跑在呼叫端外掛的執行緒上。</b></summary>
@@ -205,11 +268,23 @@ public static class ConditionManager
     /// </remarks>
     public static bool CheckConditionSetForIpc(int i)
     {
+        // 登記「有人在問這一組」。framework 執行緒下一幀會把它算出來（見 WarmIpcRequestedSets），
+        // 所以只有第一次查詢會 miss。這裡刻意不做任何求值。
+        RegisterIpcWarmRequest(i);
+
         var snapshot = Snapshot;
         if (snapshot.TryGet(i, out var value)) return value;
 
         LogSnapshotMiss(i, snapshot.Count);
         return false;
+    }
+
+    // 跑在 IPC 呼叫端的執行緒上。只碰 ConcurrentDictionary，不碰任何裸容器、不求值。
+    private static void RegisterIpcWarmRequest(int i)
+    {
+        if (i < 0) return;
+        if (ipcWarmRequests.Count >= MaxIpcWarmEntries && !ipcWarmRequests.ContainsKey(i)) return;
+        ipcWarmRequests[i] = Environment.TickCount64;
     }
 
     /// <summary>IPC 端點 <c>QoLBar.GetConditionSets</c> 的實作。<b>跑在呼叫端外掛的執行緒上。</b></summary>
