@@ -166,6 +166,10 @@ public static class ConditionManager
     // 而且完全沒有 log。有了它，預熱停止約一秒後那一格回到 Unknown ⇒ 回 false ＋ Information。
     private const float SnapshotStaleSeconds = 1.0f;
 
+    // 上一次清理時看到的條件組數量。conditionSetCache／debugSteps 的鍵是 CndSetCfg 的
+    // 參考，條件組從設定裡刪掉之後那些鍵會永遠留著（UpdateCache 只清 conditionCache）。
+    private static int lastPrunedSetCount = -1;
+
     /// <summary>目前已發布的快照。<b>任何執行緒都可以讀。</b></summary>
     public static ConditionSetSnapshot Snapshot => Volatile.Read(ref publishedSnapshot);
 
@@ -187,6 +191,16 @@ public static class ConditionManager
     {
         var sets = QoLBar.Config.CndSetCfgs;
         var n = sets.Count;
+
+        // 條件組被刪掉時，把 conditionSetCache／debugSteps 裡指向它的鍵清掉。
+        // 🔑 刻意不每幀走訪：只有「數量變了」或「快取筆數多於現有條件組數」才做一次差集。
+        //    後者是為了涵蓋「同一格內刪一個又加一個」與 Reload() 換掉整個 Config 物件之後
+        //    數量剛好相同的情況 —— 那時快取裡會同時有新舊兩批鍵，Count 一定大於 n。
+        if (n != lastPrunedSetCount || conditionSetCache.Count > n)
+        {
+            lastPrunedSetCount = n;
+            PruneConditionSetCaches(sets);
+        }
 
         // 先把「最近被 IPC 問過」的條件組在這條（安全的）執行緒上算一次，結果會落進
         // conditionSetCache，下面建快照時就抄得到。
@@ -235,6 +249,36 @@ public static class ConditionManager
     /// 而且逾時就被清掉。
     /// </para>
     /// </remarks>
+    /// <summary>把 <c>conditionSetCache</c>／<c>debugSteps</c> 裡「已經不在設定裡」的條件組清掉。</summary>
+    /// <remarks>
+    /// 🔴 兩張表的鍵都是 <see cref="CndSetCfg"/> 的<b>參考</b>（該型別沒有覆寫 Equals），
+    /// 而 <see cref="UpdateCache"/> 只清 <c>conditionCache</c> ⇒ 使用者刪掉一個條件組之後，
+    /// 指向它的那一筆會永遠留著，把已經沒人用的設定物件也一起吊住。
+    /// <para>
+    /// 📌 <b>只在條件組集合真的變動時才呼叫</b>（見 <see cref="PublishSnapshot"/> 的觸發條件），
+    /// 所以這支不是每幀成本。
+    /// </para>
+    /// <para>
+    /// 📌 <c>lockedSets</c> 刻意不清：它只在 <see cref="CheckConditionSet(CndSetCfg)"/> 執行期間
+    /// 有內容（遞迴條件組的循環偵測），進出成對，而這支不可能在它的執行期間被呼叫。
+    /// 在那裡動它反而會破壞循環偵測。
+    /// </para>
+    /// </remarks>
+    private static void PruneConditionSetCaches(List<CndSetCfg> sets)
+    {
+        if (conditionSetCache.Count == 0 && debugSteps.Count == 0) return;
+
+        var live = new HashSet<CndSetCfg>(sets);
+
+        foreach (var key in conditionSetCache.Keys.ToList())
+            if (!live.Contains(key))
+                conditionSetCache.Remove(key);
+
+        foreach (var key in debugSteps.Keys.ToList())
+            if (!live.Contains(key))
+                debugSteps.Remove(key);
+    }
+
     private static void WarmIpcRequestedSets(List<CndSetCfg> sets, int n)
     {
         if (ipcWarmRequests.IsEmpty) return;
