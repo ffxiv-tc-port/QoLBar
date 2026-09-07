@@ -1,4 +1,3 @@
-using System.Linq;
 using Dalamud.Plugin.Ipc;
 
 namespace QoLBar;
