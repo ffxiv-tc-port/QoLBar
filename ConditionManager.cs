@@ -377,10 +377,10 @@ public static class ConditionManager
     public static bool CheckCondition(string id, dynamic arg = null, bool negate = false)
     {
         var condition = GetCondition(id);
-        return condition != null && (!negate ? CheckCondition(condition, arg) : !CheckCondition(condition, arg));
+        return condition != null && (!negate ? CheckCondition(condition, arg, null) : !CheckCondition(condition, arg, null));
     }
 
-    private static bool CheckCondition(ICondition condition, dynamic arg)
+    private static bool CheckCondition(ICondition condition, dynamic arg, string setName)
     {
         if (conditionCache.TryGetValue((condition, arg), out bool cache)) // ReSharper / Rider hates this being a var for some reason
             return cache;
@@ -389,8 +389,11 @@ public static class ConditionManager
         {
             cache = condition.Check(arg);
         }
-        catch
+        catch (Exception e)
         {
+            // 舊版是裸 catch 什麼都不留 ⇒ 條件永遠算成 false 而完全查不到原因。
+            // 回傳值與快取行為一個位元都沒變，只是多留一條線索。
+            LogConditionError(condition, setName, e);
             cache = false;
         }
 
@@ -398,26 +401,28 @@ public static class ConditionManager
         return cache;
     }
 
-    private static bool CheckUnaryCondition(bool negate, ICondition condition, dynamic arg)
+    private static bool CheckUnaryCondition(bool negate, ICondition condition, dynamic arg, string setName)
     {
         try
         {
             return !negate ? condition.Check(arg) : !condition.Check(arg);
         }
-        catch
+        catch (Exception e)
         {
+            // 同上：條件擲例外時仍然算成 false（行為不變），但至少留下一條可回報的線索。
+            LogConditionError(condition, setName, e);
             return false;
         }
     }
 
-    private static bool CheckBinaryCondition(bool prev, BinaryOperator op, bool negate, ICondition condition, dynamic arg)
+    private static bool CheckBinaryCondition(bool prev, BinaryOperator op, bool negate, ICondition condition, dynamic arg, string setName)
     {
         return op switch
         {
-            BinaryOperator.AND => prev && CheckUnaryCondition(negate, condition, arg),
-            BinaryOperator.OR => prev || CheckUnaryCondition(negate, condition, arg),
-            BinaryOperator.EQUALS => prev == CheckUnaryCondition(negate, condition, arg),
-            BinaryOperator.XOR => prev ^ CheckUnaryCondition(negate, condition, arg),
+            BinaryOperator.AND => prev && CheckUnaryCondition(negate, condition, arg, setName),
+            BinaryOperator.OR => prev || CheckUnaryCondition(negate, condition, arg, setName),
+            BinaryOperator.EQUALS => prev == CheckUnaryCondition(negate, condition, arg, setName),
+            BinaryOperator.XOR => prev ^ CheckUnaryCondition(negate, condition, arg, setName),
             _ => prev
         };
     }
@@ -444,12 +449,12 @@ public static class ConditionManager
 
             if (first)
             {
-                prev = CheckUnaryCondition(cnd.Negate, condition, cnd.Arg);
+                prev = CheckUnaryCondition(cnd.Negate, condition, cnd.Arg, set.Name);
                 first = false;
             }
             else
             {
-                prev = CheckBinaryCondition(prev, cnd.Operator, cnd.Negate, condition, cnd.Arg);
+                prev = CheckBinaryCondition(prev, cnd.Operator, cnd.Negate, condition, cnd.Arg, set.Name);
             }
 
             steps.Add(prev);
@@ -461,6 +466,57 @@ public static class ConditionManager
         debugSteps[set] = steps;
         return prev;
     }
+
+    #region 條件擲例外時的節流診斷
+
+    // 🔴 為什麼要有這一段：CheckCondition／CheckUnaryCondition 原本是裸 catch，把任何例外
+    // 都吞成 false 而且一個字都不留。ICondition.Check 裡有原生指標解參與 FFXIVClientStructs
+    // 的產生式 Instance()（位址解不出來時擲 InvalidOperationException，訊息裡逐字帶著特徵碼），
+    // 所以「條件組莫名其妙一直不成立」在台服是真的會發生、而且完全查不到原因。
+    // ⚠️ 回傳值與快取行為完全不變，這裡只多寫一則 log。
+
+    // 鍵＝(條件型別 ID, 條件組名)。上限只是防呆（使用者反覆改名可能長出新鍵），滿了就整個清掉。
+    private static readonly Dictionary<(string conditionId, string setName), long> lastConditionErrorLog = new();
+    private static readonly object conditionErrorLogLock = new();
+    private const long ConditionErrorLogIntervalMs = 60_000;
+    private const int MaxConditionErrorLogKeys = 256;
+
+    /// <summary>條件擲例外時寫一則節流過的 Information。回傳值與行為完全不受影響。</summary>
+    /// <remarks>
+    /// 🔴 <b>log 呼叫在鎖外面。</b> 這段跑在 framework 執行緒上（含 <c>WarmIpcRequestedSets</c> 的
+    /// 預熱路徑），鎖內只做時間比對與記錄，決定要不要寫之後<b>先放掉鎖</b>再呼叫 <c>LogInfo</c> ——
+    /// 鎖內做 I/O 是全艦隊反覆踩到的形狀。
+    /// </remarks>
+    private static void LogConditionError(ICondition condition, string setName, Exception e)
+    {
+        var id = condition?.ID ?? "?";
+        if (!ShouldLogConditionError(id, setName)) return;
+
+        DalamudApi.LogInfo($"[QoL Bar] Condition '{id}' in condition set '{setName ?? "(none)"}' threw "
+                           + $"{e.GetType().Name}: {e.Message} — it is being evaluated as false. "
+                           + "Please report this if a condition set is not behaving as expected.");
+    }
+
+    // 鎖內絕不做 I/O：只比時間、記時間、回一個 bool。
+    private static bool ShouldLogConditionError(string conditionId, string setName)
+    {
+        var now = Environment.TickCount64;
+        var key = (conditionId, setName ?? string.Empty);
+
+        lock (conditionErrorLogLock)
+        {
+            if (lastConditionErrorLog.TryGetValue(key, out var last) && now - last < ConditionErrorLogIntervalMs)
+                return false;
+
+            if (lastConditionErrorLog.Count >= MaxConditionErrorLogKeys && !lastConditionErrorLog.ContainsKey(key))
+                lastConditionErrorLog.Clear();
+
+            lastConditionErrorLog[key] = now;
+            return true;
+        }
+    }
+
+    #endregion
 
     public static List<bool> GetDebugSteps(CndSetCfg set) => debugSteps.TryGetValue(set, out var steps) ? steps : null;
 
