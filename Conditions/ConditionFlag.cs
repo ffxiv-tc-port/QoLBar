@@ -10,8 +10,8 @@ public class ConditionFlagCondition : ICondition, IDrawableCondition, ICondition
     private static readonly Array conditionFlags = Enum.GetValues(typeof(ConditionFlag));
 
     public string ID => constID;
-    public string ConditionName => "Condition Flag";
-    public string CategoryName => "Condition Flag";
+    public string ConditionName => "Condition Flag".Loc();
+    public string CategoryName => "Condition Flag".Loc();
     public int DisplayPriority => 0;
     public bool Check(dynamic arg) => DalamudApi.Condition[(ConditionFlag)arg];
     public string GetTooltip(CndCfg cndCfg) => null;

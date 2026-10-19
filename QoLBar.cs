@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -34,6 +35,7 @@ public class QoLBar : IDalamudPlugin
     public QoLBar(IDalamudPluginInterface pluginInterface)
     {
         Plugin = this;
+        Localization.Init(pluginInterface.AssemblyLocation.DirectoryName);
         DalamudApi.Initialize(this, pluginInterface);
 
         Config = (Configuration)DalamudApi.PluginInterface.GetPluginConfig() ?? new();
@@ -134,12 +136,12 @@ public class QoLBar : IDalamudPlugin
                         ui.SetBarHidden(bar, true);
                     break;
                 default:
-                    PrintError("Invalid subcommand.");
+                    PrintError("Invalid subcommand.".Loc());
                     break;
             }
         }
         else
-            PrintError("Usage: /qolvisible [on|off|toggle] <bar>");
+            PrintError("Usage: /qolvisible [on|off|toggle] <bar>".Loc());
     }
 
     [Command("/performance")]
@@ -152,7 +154,7 @@ public class QoLBar : IDalamudPlugin
             b = (byte)r.RowId;
 
         if (b == 0)
-            PrintError("Invalid instrument.");
+            PrintError("Invalid instrument.".Loc());
         else
             Game.StartPerformance(b);
     }
@@ -172,10 +174,20 @@ public class QoLBar : IDalamudPlugin
         Keybind.Run();
         Keybind.SetupHotkeys(ui.bars);
         ConditionManager.UpdateCache();
+
+        // 把這一幀已經算好的條件組結果發布成不可變快照，給 IPC 端點讀（它們跑在呼叫端外掛的
+        // 執行緒上）。刻意放在 UpdateCache() 之後；除了 IPC 預熱之外不主動評估條件組 —— 詳見
+        // ConditionManager.PublishSnapshot 的說明。
+        ConditionManager.PublishSnapshot();
     }
 
     private void Draw()
     {
+        // 把這一幀的 ImGui 狀態抄一份，給非繪製執行緒的路徑讀（見 ImGuiEx 的「繪製執行緒的
+        // ImGui 狀態快取」一節）。刻意放在最前面，也刻意放在 pluginReady 的早退之前 ——
+        // 別的外掛可以在 pluginReady 之前就呼叫 IPC 端點。
+        ImGuiEx.UpdateFrameCache();
+
         if (_addUserIcons)
             AddUserIcons(ref _addUserIcons);
 
@@ -193,7 +205,7 @@ public class QoLBar : IDalamudPlugin
             buildToolkit.OnPreBuild(tk =>
             {
                 var config = new SafeFontConfig { SizePx = Math.Min(Math.Max(Config.FontSize, 1), MaxFontSize) };
-                var font = tk.AddDalamudAssetFont(DalamudAsset.NotoSansCjkMedium, config);
+                var font = tk.AddDalamudAssetFont(DalamudAsset.NotoSansScMedium, config);
                 config.MergeFont = font;
                 tk.AddGameSymbol(config);
                 tk.SetFontScaleMode(font, FontScaleMode.UndoGlobalScale);
@@ -255,8 +267,47 @@ public class QoLBar : IDalamudPlugin
         }
     }
 
-    public static void PrintEcho(string message) => DalamudApi.ChatGui.Print($"[QoL Bar] {message}");
-    public static void PrintError(string message) => DalamudApi.ChatGui.PrintError($"[QoL Bar] {message}");
+    /// <summary>還沒送出的聊天訊息。<b>順序就是呼叫順序</b>，一般訊息與錯誤訊息共用同一條佇列。</summary>
+    private static readonly ConcurrentQueue<(string Message, bool IsError)> PendingChatLines = new();
+
+    public static void PrintEcho(string message) => QueueForFramework($"[QoL Bar] {message}", false);
+    public static void PrintError(string message) => QueueForFramework($"[QoL Bar] {message}", true);
+
+    /// <summary>把一則已經組好的訊息排進佇列，並要求在 framework 執行緒上排乾。</summary>
+    /// <remarks>
+    /// 🔴 <b>為什麼要排到 framework 執行緒才送出</b>：本 pin 的 <c>ChatGui.Print</c>／<c>PrintError</c> 只是把項目放進一個
+    /// <b>沒有任何同步</b>的 <c>Queue&lt;XivChatEntry&gt;</c>，而 framework 執行緒同時在取；從別的執行緒呼叫
+    /// ⇒ <b>失敗形式不是「訊息晚一點出現」而是那個佇列本身壞掉</b>，受害的是所有插件的聊天輸出。
+    /// <para>
+    /// 🔴 本插件絕大多數呼叫點都在 framework 執行緒上，<b>唯一的例外是 IPC 端點 <c>QoLBar.ImportBar</c></b>
+    /// （跑在呼叫端插件的執行緒上）：匯入失敗訊息、「已自動移除條件／快捷鍵」提示與存檔失敗訊息都從那裡可達。
+    /// </para>
+    /// <para>
+    /// 📌 <c>IFramework.RunOnFrameworkThread</c> 在<b>已經是</b> framework 執行緒時就地同步執行，指令與 UI 那些路徑不受影響。
+    /// </para>
+    /// <para>
+    /// 🔑 <b>為什麼還要自己排一個佇列</b>：Dalamud 的 <c>ThreadBoundTaskScheduler</c> <b>不保證先進先出</b>，
+    /// 把每一次 <c>Print</c> 各自包成一個排程工作的話，一次連印的幾行順序會亂。
+    /// 一般訊息與錯誤訊息刻意共用同一條佇列，這樣兩者之間的先後也維持原樣。
+    /// </para>
+    /// <para>
+    /// 📌 訊息內容<b>在呼叫端的執行緒上就組好了</b>，排隊的只是「送出」這個動作。
+    /// </para>
+    /// </remarks>
+    private static void QueueForFramework(string message, bool isError)
+    {
+        PendingChatLines.Enqueue((message, isError));
+        _ = DalamudApi.Framework.RunOnFrameworkThread(static () =>
+        {
+            while (PendingChatLines.TryDequeue(out var line))
+            {
+                if (line.IsError)
+                    DalamudApi.ChatGui.PrintError(line.Message);
+                else
+                    DalamudApi.ChatGui.Print(line.Message);
+            }
+        });
+    }
 
     protected virtual void Dispose(bool disposing)
     {

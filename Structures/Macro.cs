@@ -1,65 +1,47 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using FFXIVClientStructs.FFXIV.Client.System.String;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 
 namespace QoLBar.Structures;
 
-[StructLayout(LayoutKind.Sequential, Size = 0x688)]
-public readonly struct Macro : IDisposable
-{
-    public const int numLines = 15;
-    public const int size = 0x8 + (UTF8String.size * (numLines + 1));
-
-    public readonly uint icon;
-    public readonly uint key;
-    public readonly UTF8String title;
-    [MarshalAs(UnmanagedType.ByValArray, SizeConst = numLines)]
-    public readonly UTF8String[] lines;
-
-    public Macro(IntPtr loc, string t, IReadOnlyList<string> commands)
-    {
-        icon = 0x101D1; // 66001
-        key = 1;
-        title = new UTF8String(loc + 0x8, t);
-        lines = new UTF8String[numLines];
-        for (int i = 0; i < numLines; i++)
-        {
-            var command = (commands.Count > i) ? commands[i] : string.Empty;
-            lines[i] = new UTF8String(loc + 0x8 + (UTF8String.size * (i + 1)), command);
-        }
-    }
-
-    public void Dispose()
-    {
-        title.Dispose();
-        for (int i = 0; i < numLines; i++)
-            lines[i].Dispose();
-    }
-}
-
-[StructLayout(LayoutKind.Sequential, Size = 0xCA0)]
-public readonly struct ExtendedMacro : IDisposable
+/// <summary>
+/// A game <see cref="RaptureMacroModule.Macro"/> followed by extra lines (QoL Bar's own extension: the game only
+/// reads past <see cref="GameLines"/> while its line-count bytes are patched). Written into caller-owned memory
+/// of <see cref="size"/> bytes, which must outlive this value.
+/// </summary>
+public readonly unsafe struct ExtendedMacro : IDisposable
 {
     public const int numLines = 30;
-    public const int size = 0x8 + (UTF8String.size * (numLines + 1));
+    public static readonly int GameLines = CountGameLines();
+    public static readonly int size = sizeof(RaptureMacroModule.Macro) + (numLines - GameLines) * sizeof(Utf8String);
 
-    private readonly uint icon;
-    private readonly uint key;
-    private readonly UTF8String title;
-    [MarshalAs(UnmanagedType.ByValArray, SizeConst = numLines)]
-    private readonly UTF8String[] lines;
+    private readonly TempUtf8String title;
+    private readonly TempUtf8String[] lines;
 
-    public ExtendedMacro(IntPtr loc, string t, IReadOnlyList<string> commands)
+    public ExtendedMacro(nint loc, string t, IReadOnlyList<string> commands)
     {
-        icon = 0x101D1; // 66001
-        key = 1;
-        title = new UTF8String(loc + 0x8, t);
-        lines = new UTF8String[numLines];
+        NativeMemory.Clear((void*)loc, (nuint)size);
+        var macro = (RaptureMacroModule.Macro*)loc;
+        macro->IconId = 0x101D1; // 66001
+        macro->MacroIconRowId = 1;
+        title = new TempUtf8String(&macro->Name, t);
+
+        var firstLine = (Utf8String*)Unsafe.AsPointer(ref macro->Lines[0]);
+        lines = new TempUtf8String[numLines];
         for (int i = 0; i < numLines; i++)
         {
             var command = (commands.Count > i) ? commands[i] : string.Empty;
-            lines[i] = new UTF8String(loc + 0x8 + (UTF8String.size * (i + 1)), command);
+            lines[i] = new TempUtf8String(firstLine + i, command);
         }
+    }
+
+    private static int CountGameLines()
+    {
+        RaptureMacroModule.Macro macro = default;
+        return macro.Lines.Length;
     }
 
     public void Dispose()

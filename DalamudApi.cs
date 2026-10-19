@@ -92,10 +92,10 @@ public class DalamudApi
     public static IObjectTable ObjectTable { get; private set; }
 
     [PluginService]
-    public static IPartyFinderGui PartyFinderGui { get; private set; }
+    public static IPlayerState PlayerState { get; private set; }
 
     [PluginService]
-    public static IPlayerState PlayerState { get; private set; }
+    public static IPartyFinderGui PartyFinderGui { get; private set; }
 
     [PluginService]
     public static IPartyList PartyList { get; private set; }
@@ -221,7 +221,7 @@ public class PluginCommandManager<T> : IDisposable where T : IDalamudPlugin
 
         var commandInfo = new CommandInfo(handlerDelegate)
         {
-            HelpMessage = helpMessage?.HelpMessage ?? string.Empty,
+            HelpMessage = QoLBar.Localization.Loc(helpMessage?.HelpMessage ?? string.Empty),
             ShowInHelp = doNotShowInHelp == null,
         };
 

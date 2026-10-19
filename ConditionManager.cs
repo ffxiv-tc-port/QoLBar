@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 
 namespace QoLBar;
 
@@ -45,6 +47,66 @@ public interface IConditionSetPreset
     public CndSetCfg Generate();
 }
 
+/// <summary>
+/// 條件組評估結果的<b>不可變快照</b>，由 framework 執行緒每幀發布、任何執行緒都可以安全讀。
+/// </summary>
+/// <remarks>
+/// 🔴 IPC 端點 <c>QoLBar.CheckConditionSet</c> 跑在<b>呼叫端插件的執行緒</b>上，不可以直接呼叫
+/// <see cref="ConditionManager.CheckConditionSet(int)"/>：那會①寫 <c>conditionCache</c>／<c>conditionSetCache</c>／
+/// <c>debugSteps</c>／<c>lockedSets</c> 四個裸容器，而 framework 執行緒每幀也在改同一批 ⇒ <b>字典本身壞掉</b>；
+/// ②在呼叫端的執行緒上執行 <c>ICondition.Check</c>，裡面有<b>原生遊戲記憶體讀取</b> ⇒ <c>try/catch</c> 攔不到的 AccessViolation；
+/// ③讀 <c>QoLBar.Config.CndSetCfgs</c> 這個 <c>List&lt;T&gt;</c>，而它會在 framework 執行緒上被增刪。
+/// <para>
+/// 📌 快照<b>只複製已經算好的結果</b>；唯一會主動求值的是「最近被 IPC 問過的條件組」的預熱（在 framework 執行緒上）。
+/// </para>
+/// </remarks>
+public sealed class ConditionSetSnapshot
+{
+    /// <summary>該格條件組從來沒被評估過（沒有人參照它，也沒在設定視窗打開過）。</summary>
+    public const byte Unknown = 0;
+    public const byte KnownFalse = 1;
+    public const byte KnownTrue = 2;
+
+    public static readonly ConditionSetSnapshot Empty = new(Array.Empty<byte>(), Array.Empty<string>());
+
+    // 🔴 這兩個陣列建構之後絕不再寫入 —— 「不可變」是靠紀律，不是靠型別。
+    private readonly byte[] states;
+    private readonly string[] names;
+
+    public ConditionSetSnapshot(byte[] states, string[] names)
+    {
+        this.states = states;
+        this.names = names;
+    }
+
+    public int Count => states.Length;
+
+    /// <summary>取第 <paramref name="i"/> 組的評估結果；沒有評估過或索引越界就回 <see langword="false"/>。</summary>
+    public bool TryGet(int i, out bool value)
+    {
+        value = false;
+        if (i < 0 || i >= states.Length) return false;
+        var s = states[i];
+        if (s == Unknown) return false;
+        value = s == KnownTrue;
+        return true;
+    }
+
+    /// <summary>條件組名稱的副本（給 IPC 端點回答用，呼叫端拿到的是自己的一份）。</summary>
+    public string[] CopyNames() => (string[])names.Clone();
+
+    /// <summary>內容是否與 framework 執行緒剛算好的暫存區完全相同（相同就不必換一份新的）。</summary>
+    public bool Matches(byte[] otherStates, string[] otherNames)
+    {
+        if (states.Length != otherStates.Length || names.Length != otherNames.Length) return false;
+        for (var i = 0; i < states.Length; i++)
+            if (states[i] != otherStates[i]) return false;
+        for (var i = 0; i < names.Length; i++)
+            if (!string.Equals(names[i], otherNames[i], StringComparison.Ordinal)) return false;
+        return true;
+    }
+}
+
 public static class ConditionManager
 {
     public enum BinaryOperator
@@ -62,6 +124,211 @@ public static class ConditionManager
     private static readonly Dictionary<CndSetCfg, List<bool>> debugSteps = new();
     private static readonly HashSet<CndSetCfg> lockedSets = new();
     private static float lastConditionCache = 0;
+
+    #region 給 IPC 端點讀的快照（framework 執行緒發布）
+
+    // 🔴 下面這兩個暫存區只有 framework 執行緒碰（PublishSnapshot 內），不對外曝光。
+    private static byte[] snapshotStates = Array.Empty<byte>();
+    private static string[] snapshotNames = Array.Empty<string>();
+
+    // 已發布的快照。寫入只在 framework 執行緒、讀取可能在任何執行緒 ⇒ 走 Volatile。
+    private static ConditionSetSnapshot publishedSnapshot = ConditionSetSnapshot.Empty;
+
+    private const long SnapshotMissLogIntervalMs = 10_000;
+    private static long lastSnapshotMissLog = -1;
+
+    // 「最近有人透過 IPC 問過第 i 組」→ 上次被問的 Environment.TickCount64。
+    // 🔴 寫入端是 IPC 呼叫端的執行緒、讀取與清除端是 framework 執行緒 ⇒ 必須是 ConcurrentDictionary。
+    // 上限只是防呆：呼叫端若一直丟不存在的索引，這張表也不會無限長；超過上限就不再收新的鍵
+    // （ContainsKey/Count/索引指派三步不是原子的，所以實際筆數可能短暫略高於上限，無害）。
+    private static readonly ConcurrentDictionary<int, long> ipcWarmRequests = new();
+    private const long IpcWarmTtlMs = 5_000;
+    private const int MaxIpcWarmEntries = 64;
+
+    // 快照裡的一格若比這個秒數更舊就當成 Unknown。
+    // 🔑 必須遠大於 CheckConditionSet 自己的 0.1 秒求值 TTL：被任何列參照的條件組每幀都會經由 BarUI.IsVisible
+    // 走一次 CheckConditionSet，time 至少每 0.1 秒更新一次，不會因為這道閘門變成 Unknown。
+    // 它擋的是預熱停止之後那一格凍在最後算出來的值：消費端幾分鐘後再問會拿到一個很舊卻看起來正常的答案。
+    // 有了它，預熱停止約一秒後那一格回到 Unknown ⇒ 回 false ＋ Information。
+    private const float SnapshotStaleSeconds = 1.0f;
+
+    // 上一次清理時看到的條件組數量。conditionSetCache／debugSteps 的鍵是 CndSetCfg 的
+    // 參考，條件組從設定裡刪掉之後那些鍵會永遠留著（UpdateCache 只清 conditionCache）。
+    private static int lastPrunedSetCount = -1;
+
+    /// <summary>目前已發布的快照。<b>任何執行緒都可以讀。</b></summary>
+    public static ConditionSetSnapshot Snapshot => Volatile.Read(ref publishedSnapshot);
+
+    /// <summary>
+    /// framework 執行緒每幀在 <see cref="UpdateCache"/> 之後呼叫，把「這一幀已經算好的」
+    /// 條件組結果與名稱發布成一份不可變快照。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>刻意只複製 <c>conditionSetCache</c> 裡現成的值</b>，除了最近被 IPC 問過的那幾組（預熱）之外不主動評估條件組。
+    /// 主動評估會讓「沒有任何列參照的條件組」也每幀跑一遍 <c>ICondition.Check</c>
+    /// （裡面有原生讀取與 <c>ResolvePlaceholder</c> 呼叫），那是白花的每幀成本，
+    /// 而且會改變既有的求值時機。代價是<b>從來沒被評估過的條件組在快照裡是 Unknown</b>，
+    /// IPC 端點對它回 <see langword="false"/> —— 見 <see cref="CheckConditionSetForIpc"/>。
+    /// <para>
+    /// 📌 內容沒變就不換物件，所以常見情況<b>零配置</b>；換的時候才複製一份新陣列。
+    /// </para>
+    /// </remarks>
+    public static void PublishSnapshot()
+    {
+        var sets = QoLBar.Config.CndSetCfgs;
+        var n = sets.Count;
+
+        // 條件組被刪掉時，把 conditionSetCache／debugSteps 裡指向它的鍵清掉。
+        // 🔑 刻意不每幀走訪：只有「數量變了」或「快取筆數多於現有條件組數」才做一次差集。
+        //    後者是為了涵蓋「同一格內刪一個又加一個」與 Reload() 換掉整個 Config 物件之後
+        //    數量剛好相同的情況 —— 那時快取裡會同時有新舊兩批鍵，Count 一定大於 n。
+        if (n != lastPrunedSetCount || conditionSetCache.Count > n)
+        {
+            lastPrunedSetCount = n;
+            PruneConditionSetCaches(sets);
+        }
+
+        // 先把「最近被 IPC 問過」的條件組在這條（安全的）執行緒上算一次，結果會落進
+        // conditionSetCache，下面建快照時就抄得到。
+        WarmIpcRequestedSets(sets, n);
+
+        if (snapshotStates.Length != n)
+        {
+            snapshotStates = new byte[n];
+            snapshotNames = new string[n];
+        }
+
+        var now = QoLBar.RunTime;
+        for (var i = 0; i < n; i++)
+        {
+            var set = sets[i];
+            snapshotNames[i] = set.Name;
+            snapshotStates[i] = conditionSetCache.TryGetValue(set, out var c) && now - c.time <= SnapshotStaleSeconds
+                ? (c.prev ? ConditionSetSnapshot.KnownTrue : ConditionSetSnapshot.KnownFalse)
+                : ConditionSetSnapshot.Unknown;
+        }
+
+        var current = Volatile.Read(ref publishedSnapshot);
+        if (current.Matches(snapshotStates, snapshotNames)) return;
+
+        Volatile.Write(ref publishedSnapshot,
+            new ConditionSetSnapshot((byte[])snapshotStates.Clone(), (string[])snapshotNames.Clone()));
+    }
+
+    /// <summary>把 <c>conditionSetCache</c>／<c>debugSteps</c> 裡「已經不在設定裡」的條件組清掉。</summary>
+    /// <remarks>
+    /// 🔴 兩張表的鍵都是 <see cref="CndSetCfg"/> 的<b>參考</b>（該型別沒有覆寫 Equals），
+    /// 而 <see cref="UpdateCache"/> 只清 <c>conditionCache</c> ⇒ 使用者刪掉一個條件組之後，
+    /// 指向它的那一筆會永遠留著，把已經沒人用的設定物件也一起吊住。
+    /// <para>
+    /// 📌 <b>只在條件組集合真的變動時才呼叫</b>（見 <see cref="PublishSnapshot"/> 的觸發條件），
+    /// 所以這支不是每幀成本。
+    /// </para>
+    /// <para>
+    /// 📌 <c>lockedSets</c> 刻意不清：它只在 <see cref="CheckConditionSet(CndSetCfg)"/> 執行期間
+    /// 有內容（遞迴條件組的循環偵測），進出成對，而這支不可能在它的執行期間被呼叫。
+    /// 在那裡動它反而會破壞循環偵測。
+    /// </para>
+    /// </remarks>
+    private static void PruneConditionSetCaches(List<CndSetCfg> sets)
+    {
+        if (conditionSetCache.Count == 0 && debugSteps.Count == 0) return;
+
+        var live = new HashSet<CndSetCfg>(sets);
+
+        foreach (var key in conditionSetCache.Keys.ToList())
+            if (!live.Contains(key))
+                conditionSetCache.Remove(key);
+
+        foreach (var key in debugSteps.Keys.ToList())
+            if (!live.Contains(key))
+                debugSteps.Remove(key);
+    }
+
+    /// <summary>
+    /// 在 framework 執行緒上評估「最近 <see cref="IpcWarmTtlMs"/> 毫秒內被 IPC 問過」的條件組。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 讓「沒有任何列參照、只有別的插件在問」的條件組也拿得到真答案：第一次查詢 miss 並登記需求，
+    /// 下一幀這裡把它算出來，第二次查詢起就是真答案。
+    /// 🔴 求值刻意放在<b>這條執行緒</b>：<c>ICondition.Check</c> 裡有原生指標解參。
+    /// 📌 沒有另設每幀上限：能進到這張表的鍵最多 <see cref="MaxIpcWarmEntries"/> 個，而且逾時就被清掉；
+    /// 被列參照的條件組在 <see cref="CheckConditionSet(CndSetCfg)"/> 的 0.1 秒求值 TTL 內只是一次字典命中。
+    /// </remarks>
+    private static void WarmIpcRequestedSets(List<CndSetCfg> sets, int n)
+    {
+        if (ipcWarmRequests.IsEmpty) return;
+
+        var now = Environment.TickCount64;
+        foreach (var kv in ipcWarmRequests)
+        {
+            if (now - kv.Value >= IpcWarmTtlMs)
+            {
+                ipcWarmRequests.TryRemove(kv.Key, out _);
+                continue;
+            }
+
+            var i = kv.Key;
+            if (i < 0 || i >= n) continue;
+
+            CheckConditionSet(sets[i]);
+        }
+    }
+
+    /// <summary>IPC 端點 <c>QoLBar.CheckConditionSet</c> 的實作。<b>跑在呼叫端外掛的執行緒上。</b></summary>
+    /// <remarks>
+    /// 🔴 這裡<b>只讀快照</b>：不評估、不寫任何共用容器、不碰 <c>QoLBar.Config.CndSetCfgs</c>、
+    /// 不呼叫任何 <c>ICondition.Check</c>（那裡面有原生記憶體讀取）。端點的簽章與同步語意不變
+    /// —— 一樣是「立刻回答」。
+    /// <para>
+    /// ⚠️ 快照裡沒有這一組（＝這一幀之前還沒有人評估過它，通常表示沒有任何列參照它）時回 <see langword="false"/>，
+    /// 與「索引不存在」同值，並寫一則節流過的 Information；登記預熱之後下一幀起就是真答案。
+    /// </para>
+    /// </remarks>
+    public static bool CheckConditionSetForIpc(int i)
+    {
+        // 登記「有人在問這一組」。framework 執行緒下一幀會把它算出來（見 WarmIpcRequestedSets），
+        // 所以只有第一次查詢會 miss。這裡刻意不做任何求值。
+        RegisterIpcWarmRequest(i);
+
+        var snapshot = Snapshot;
+        if (snapshot.TryGet(i, out var value)) return value;
+
+        LogSnapshotMiss(i, snapshot.Count);
+        return false;
+    }
+
+    // 跑在 IPC 呼叫端的執行緒上。只碰 ConcurrentDictionary，不碰任何裸容器、不求值。
+    private static void RegisterIpcWarmRequest(int i)
+    {
+        if (i < 0) return;
+        if (ipcWarmRequests.Count >= MaxIpcWarmEntries && !ipcWarmRequests.ContainsKey(i)) return;
+        ipcWarmRequests[i] = Environment.TickCount64;
+    }
+
+    /// <summary>IPC 端點 <c>QoLBar.GetConditionSets</c> 的實作。<b>跑在呼叫端外掛的執行緒上。</b></summary>
+    /// <remarks>
+    /// 🔴 不可以直接走訪 <c>QoLBar.Config.CndSetCfgs</c>：那是 framework 執行緒正在增刪的 <c>List&lt;T&gt;</c>，
+    /// 從別的執行緒走訪好一點是 <c>InvalidOperationException</c>，壞一點是讀到撕裂的內部陣列。從同一份快照回答。
+    /// </remarks>
+    public static string[] GetConditionSetNamesForIpc() => Snapshot.CopyNames();
+
+    // 節流：EzThrottler 不是執行緒安全的、而且是全外掛共用（本外掛沒用 ECommons，但同一條理由成立），
+    // 所以自己用 CAS 做。第一次一定放行；之後每 10 秒最多一則。
+    private static void LogSnapshotMiss(int i, int count)
+    {
+        var now = Environment.TickCount64;
+        var last = Volatile.Read(ref lastSnapshotMissLog);
+        if (last >= 0 && now - last < SnapshotMissLogIntervalMs) return;
+        if (Interlocked.CompareExchange(ref lastSnapshotMissLog, now, last) != last) return;
+
+        DalamudApi.LogInfo($"[QoL Bar] IPC CheckConditionSet({i}) answered false from the published snapshot "
+                           + $"(snapshot has {count} set(s), but no evaluated result for that index). "
+                           + "A condition set that no bar references is never evaluated, so it stays unknown. "
+                           + "Please report this if you expected a real answer.");
+    }
+
+    #endregion
 
     public static List<(IConditionCategory category, List<ICondition> conditions)> ConditionCategories { get; private set; } = new();
     public static List<IConditionSetPreset> Presets { get; } = new();
@@ -126,10 +393,10 @@ public static class ConditionManager
     public static bool CheckCondition(string id, dynamic arg = null, bool negate = false)
     {
         var condition = GetCondition(id);
-        return condition != null && (!negate ? CheckCondition(condition, arg) : !CheckCondition(condition, arg));
+        return condition != null && (!negate ? CheckCondition(condition, arg, null) : !CheckCondition(condition, arg, null));
     }
 
-    private static bool CheckCondition(ICondition condition, dynamic arg)
+    private static bool CheckCondition(ICondition condition, dynamic arg, string setName)
     {
         if (conditionCache.TryGetValue((condition, arg), out bool cache)) // ReSharper / Rider hates this being a var for some reason
             return cache;
@@ -138,8 +405,10 @@ public static class ConditionManager
         {
             cache = condition.Check(arg);
         }
-        catch
+        catch (Exception e)
         {
+            // 條件擲例外時算成 false，並留下一條可回報的線索（不然完全查不到原因）。
+            LogConditionError(condition, setName, e);
             cache = false;
         }
 
@@ -147,26 +416,28 @@ public static class ConditionManager
         return cache;
     }
 
-    private static bool CheckUnaryCondition(bool negate, ICondition condition, dynamic arg)
+    private static bool CheckUnaryCondition(bool negate, ICondition condition, dynamic arg, string setName)
     {
         try
         {
             return !negate ? condition.Check(arg) : !condition.Check(arg);
         }
-        catch
+        catch (Exception e)
         {
+            // 條件擲例外時算成 false，並留下一條可回報的線索。
+            LogConditionError(condition, setName, e);
             return false;
         }
     }
 
-    private static bool CheckBinaryCondition(bool prev, BinaryOperator op, bool negate, ICondition condition, dynamic arg)
+    private static bool CheckBinaryCondition(bool prev, BinaryOperator op, bool negate, ICondition condition, dynamic arg, string setName)
     {
         return op switch
         {
-            BinaryOperator.AND => prev && CheckUnaryCondition(negate, condition, arg),
-            BinaryOperator.OR => prev || CheckUnaryCondition(negate, condition, arg),
-            BinaryOperator.EQUALS => prev == CheckUnaryCondition(negate, condition, arg),
-            BinaryOperator.XOR => prev ^ CheckUnaryCondition(negate, condition, arg),
+            BinaryOperator.AND => prev && CheckUnaryCondition(negate, condition, arg, setName),
+            BinaryOperator.OR => prev || CheckUnaryCondition(negate, condition, arg, setName),
+            BinaryOperator.EQUALS => prev == CheckUnaryCondition(negate, condition, arg, setName),
+            BinaryOperator.XOR => prev ^ CheckUnaryCondition(negate, condition, arg, setName),
             _ => prev
         };
     }
@@ -193,12 +464,12 @@ public static class ConditionManager
 
             if (first)
             {
-                prev = CheckUnaryCondition(cnd.Negate, condition, cnd.Arg);
+                prev = CheckUnaryCondition(cnd.Negate, condition, cnd.Arg, set.Name);
                 first = false;
             }
             else
             {
-                prev = CheckBinaryCondition(prev, cnd.Operator, cnd.Negate, condition, cnd.Arg);
+                prev = CheckBinaryCondition(prev, cnd.Operator, cnd.Negate, condition, cnd.Arg, set.Name);
             }
 
             steps.Add(prev);
@@ -210,6 +481,54 @@ public static class ConditionManager
         debugSteps[set] = steps;
         return prev;
     }
+
+    #region 條件擲例外時的節流診斷
+
+    // 🔴 ICondition.Check 裡有原生指標解參與 FFXIVClientStructs 的產生式 Instance()（位址解不出來時擲
+    // InvalidOperationException，訊息裡逐字帶著特徵碼），所以「條件組莫名其妙一直不成立」在台服真的會發生；
+    // 例外一律吞成 false，這裡只多寫一則 log，回傳值與快取行為不變。
+
+    // 鍵＝(條件型別 ID, 條件組名)。上限只是防呆（使用者反覆改名可能長出新鍵），滿了就整個清掉。
+    private static readonly Dictionary<(string conditionId, string setName), long> lastConditionErrorLog = new();
+    private static readonly object conditionErrorLogLock = new();
+    private const long ConditionErrorLogIntervalMs = 60_000;
+    private const int MaxConditionErrorLogKeys = 256;
+
+    /// <summary>條件擲例外時寫一則節流過的 Information。回傳值與行為完全不受影響。</summary>
+    /// <remarks>
+    /// 🔴 <b>log 呼叫在鎖外面。</b> 這段跑在 framework 執行緒上（含 <c>WarmIpcRequestedSets</c> 的
+    /// 預熱路徑），鎖內只做時間比對與記錄，決定要不要寫之後<b>先放掉鎖</b>再呼叫 <c>LogInfo</c>。
+    /// </remarks>
+    private static void LogConditionError(ICondition condition, string setName, Exception e)
+    {
+        var id = condition?.ID ?? "?";
+        if (!ShouldLogConditionError(id, setName)) return;
+
+        DalamudApi.LogInfo($"[QoL Bar] Condition '{id}' in condition set '{setName ?? "(none)"}' threw "
+                           + $"{e.GetType().Name}: {e.Message} — it is being evaluated as false. "
+                           + "Please report this if a condition set is not behaving as expected.");
+    }
+
+    // 鎖內絕不做 I/O：只比時間、記時間、回一個 bool。
+    private static bool ShouldLogConditionError(string conditionId, string setName)
+    {
+        var now = Environment.TickCount64;
+        var key = (conditionId, setName ?? string.Empty);
+
+        lock (conditionErrorLogLock)
+        {
+            if (lastConditionErrorLog.TryGetValue(key, out var last) && now - last < ConditionErrorLogIntervalMs)
+                return false;
+
+            if (lastConditionErrorLog.Count >= MaxConditionErrorLogKeys && !lastConditionErrorLog.ContainsKey(key))
+                lastConditionErrorLog.Clear();
+
+            lastConditionErrorLog[key] = now;
+            return true;
+        }
+    }
+
+    #endregion
 
     public static List<bool> GetDebugSteps(CndSetCfg set) => debugSteps.TryGetValue(set, out var steps) ? steps : null;
 

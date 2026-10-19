@@ -61,7 +61,8 @@ public class ShCfg
     {
         Command,
         Category,
-        Spacer
+        Spacer,
+        PluginMenu
     }
     public enum ShortcutMode
     {
@@ -229,7 +230,7 @@ public class Configuration : IPluginConfiguration
             else
             {
                 DalamudApi.LogError("Failed to save again :(");
-                QoLBar.PrintError("Error saving config, is something else writing to it?");
+                QoLBar.PrintError("Error saving config, is something else writing to it?".Loc());
             }
         }
     }
@@ -355,8 +356,8 @@ public class Configuration : IPluginConfiguration
         var window = ImGuiHelpers.MainViewport.Size;
         ImGui.SetNextWindowPos(new System.Numerics.Vector2(window.X / 2, window.Y / 2), ImGuiCond.Appearing, new System.Numerics.Vector2(0.5f));
         ImGui.SetNextWindowSize(new System.Numerics.Vector2(550, 280) * ImGuiHelpers.GlobalScale);
-        ImGui.Begin("QoL Bar Updated!", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
-        ImGui.TextWrapped("QoL Bar has a new feature where categories may now run commands like a normal shortcut, " +
+        ImGui.Begin("QoL Bar Updated!".Loc(), ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
+        ImGui.TextWrapped(("QoL Bar has a new feature where categories may now run commands like a normal shortcut, " +
                           "this may cause problems for people who were using the plugin BEFORE JANUARY 4TH, due to " +
                           "the command setting being used for tooltips. Please verify that you understand the risks " +
                           "and that YOU MAY ACCIDENTALLY SEND CHAT MESSAGES WHEN CLICKING CATEGORIES. Additionally, " +
@@ -365,15 +366,15 @@ public class Configuration : IPluginConfiguration
                           "real downside if you have not started to utilize this feature. Selecting NO will close this " +
                           "popup permanently, you may also change your mind after selecting YES if you restore the " +
                           "version backup from the config, please be aware that old configs will possibly contain " +
-                          "commands again if you do reload one of them.");
+                          "commands again if you do reload one of them.").Loc());
         ImGui.Spacing();
         ImGui.Spacing();
-        ImGui.Checkbox("I UNDERSTAND", ref updateWindowAgree);
+        ImGui.Checkbox("I UNDERSTAND".Loc(), ref updateWindowAgree);
         if (updateWindowAgree)
         {
             ImGui.Spacing();
             ImGui.Spacing();
-            if (ImGui.Button("YES, DELETE THEM"))
+            if (ImGui.Button("YES, DELETE THEM".Loc()))
             {
                 static void DeleteRecursive(ShCfg sh)
                 {
@@ -396,7 +397,7 @@ public class Configuration : IPluginConfiguration
                 displayUpdateWindow = false;
             }
             ImGui.SameLine();
-            if (ImGui.Button("NO, I AM FINE"))
+            if (ImGui.Button("NO, I AM FINE".Loc()))
                 displayUpdateWindow = false;
         }
         ImGui.End();

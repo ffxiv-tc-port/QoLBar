@@ -35,7 +35,7 @@ public static class ConditionSetUI
 
         if (ImGui.Button(FontAwesomeIcon.Plus.ToIconString(), buttonSize))
         {
-            QoLBar.Config.CndSetCfgs.Add(new() { Name = "New Set" });
+            QoLBar.Config.CndSetCfgs.Add(new() { Name = "New Set".Loc() });
             QoLBar.Config.Save();
         }
 
@@ -59,7 +59,7 @@ public static class ConditionSetUI
             ImGui.PopStyleColor(4);
 
         ImGui.PopFont();
-        ImGuiEx.SetItemTooltip(!containsSensitiveInfo ? "Export condition set to clipboard." : "Please enable the \"Allow exporting sensitive condition sets\" setting to export this set.");
+        ImGuiEx.SetItemTooltip(!containsSensitiveInfo ? "Export condition set to clipboard.".Loc() : "Please enable the \"Allow exporting sensitive condition sets\" setting to export this set.".Loc());
         ImGui.PushFont(UiBuilder.IconFont);
 
         ImGui.SameLine();
@@ -83,11 +83,11 @@ public static class ConditionSetUI
             }
             catch (Exception e)
             {
-                QoLBar.PrintError($"Failed to import condition set from clipboard!\n{e.Message}");
+                QoLBar.PrintError("Failed to import condition set from clipboard!\n??".Loc(e.Message));
             }
         }
         ImGui.PopFont();
-        ImGuiEx.SetItemTooltip("Import condition set from clipboard.");
+        ImGuiEx.SetItemTooltip("Import condition set from clipboard.".Loc());
         ImGui.PushFont(UiBuilder.IconFont);
 
         ImGui.SameLine();
@@ -135,7 +135,7 @@ public static class ConditionSetUI
 
         ImGui.PopFont();
 
-        ImGuiEx.SetItemTooltip("Double click on a set to edit its name.\n\nAdditionally, you can click this to open Dalamud's debug menu\nto see current Condition Flags.");
+        ImGuiEx.SetItemTooltip("Double click on a set to edit its name.\n\nAdditionally, you can click this to open Dalamud's debug menu\nto see current Condition Flags.".Loc());
 
         if (ImGui.IsItemHovered() && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
             Game.ExecuteCommand("/xldata condition");
@@ -144,7 +144,7 @@ public static class ConditionSetUI
         var listWidth = (ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X - ImGui.GetStyle().ItemSpacing.X) / 2;
 
         ImGui.SameLine(listWidth);
-        ImGui.TextUnformatted("\t\tDynamic Presets");
+        ImGui.TextUnformatted("\t\t" + "Dynamic Presets".Loc());
 
         ImGui.BeginChild("QoLBarConditionSetList", new Vector2(listWidth, listHeight), true);
         DrawConditionSetList();
@@ -284,7 +284,7 @@ public static class ConditionSetUI
 
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Right click this button to delete this condition!");
+                ImGui.SetTooltip("Right click this button to delete this condition!".Loc());
 
                 if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
                 {
@@ -315,7 +315,7 @@ public static class ConditionSetUI
                 if (debugSteps != null && i < debugSteps.Count)
                 {
                     var setSuccess = debugSteps[i];
-                    operatorTooltip += $"\nSet (Up to this condition): {(setSuccess ? "True" : "False")}";
+                    operatorTooltip += "\nSet (Up to this condition): ??".Loc(setSuccess ? "True" : "False");
 
                     var setStatusCol = setSuccess ? 0x2000FF00u : 0x200000FFu;
                     ImGui.GetWindowDrawList().AddRectFilled(ImGui.GetItemRectMin(), ImGui.GetItemRectMax(), setStatusCol, ImGui.GetStyle().FrameRounding);
@@ -350,7 +350,7 @@ public static class ConditionSetUI
 
             var notTooltip = "NOT";
             var success = ConditionManager.CheckCondition(cndCfg.ID, cndCfg.Arg, cndCfg.Negate);
-            notTooltip += $"\nCondition: {(success ? "True" : "False")}";
+            notTooltip += "\nCondition: ??".Loc(success ? "True" : "False");
 
             var statusCol = success ? 0x2000FF00u : 0x200000FFu;
             ImGui.GetWindowDrawList().AddRectFilled(ImGui.GetItemRectMin(), ImGui.GetItemRectMax(), statusCol, ImGui.GetStyle().FrameRounding);

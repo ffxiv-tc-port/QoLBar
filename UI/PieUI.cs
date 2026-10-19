@@ -99,7 +99,7 @@ public static class PieUI
                 if (open)
                 {
                     if (ImGuiPie.IsItemActivated())
-                        sh.OnClick(false, true, false);
+                        sh.OnClick(ClickLog.Source.Pie, false, true, false);
 
                     DrawChildren(sh.children);
 
@@ -108,10 +108,19 @@ public static class PieUI
 
                 totalItems++;
             }
+            else if (sh.Config.Type == ShortcutType.PluginMenu)
+            {
+                // The popup can only be opened from the bar's own draw, so activate the shortcut like a hotkey would
+                if (ImGuiPie.PieMenuItem($"{sh.Config.Name}"))
+                    sh.ActivateWithParents(ClickLog.Source.Pie);
+                ImGuiPie.PieDrawOverride(DrawShortcut(sh));
+
+                totalItems++;
+            }
             else if (sh.Config.Type != ShortcutType.Spacer)
             {
                 if (ImGuiPie.PieMenuItem($"{sh.Config.Name}"))
-                    sh.OnClick(false, true, false);
+                    sh.OnClick(ClickLog.Source.Pie, false, true, false);
                 ImGuiPie.PieDrawOverride(DrawShortcut(sh));
 
                 totalItems++;
@@ -125,14 +134,35 @@ public static class PieUI
     }
 
     // TODO: what the fuck
-    public static Action<Vector2, bool> DrawShortcut(ShortcutUI ui)
+    public static Action<Vector2, bool> DrawShortcut(ShortcutUI ui) => (ui.pieDrawState ??= new PieDrawState()).Capture(ui);
+
+    // 每個 ShortcutUI 一份、委派只建一次；Capture 覆寫快照，取值順序與時機同原本每次 new 的閉包。
+    // 圓盤只在同一幀的 EndPiePopup 畫本幀宣告過的項目，同一個 ShortcutUI 一幀只宣告一次 ⇒ 畫時看到的就是本幀快照。
+    public sealed class PieDrawState
     {
-        var sh = ui.DisplayedUI.Config;
-        var bar = ui.parentBar.Config;
-        return (center, hovered) =>
+        private ShortcutUI displayed;
+        private ShCfg sh;
+        private BarCfg bar;
+        private readonly Action<Vector2, bool> draw;
+
+        public PieDrawState() => draw = DrawItem;
+
+        public Action<Vector2, bool> Capture(ShortcutUI ui)
         {
-            var name = sh.Name;
-            var useIcon = ShortcutUI.ParseName(ref name, out _, out var tooltip, out var icon, out var args);
+            displayed = ui.DisplayedUI;
+            sh = displayed.Config;
+            bar = ui.parentBar.Config;
+            return draw;
+        }
+
+        private void DrawItem(Vector2 center, bool hovered)
+        {
+            var parsed = displayed.GetParsedName(sh.Name);
+            var name = parsed.Name;
+            var useIcon = parsed.UseIcon;
+            var tooltip = parsed.Tooltip;
+            var icon = parsed.Icon;
+            var args = parsed.Args;
 
             var c = ImGui.ColorConvertU32ToFloat4(sh.Color);
             c.W += sh.ColorAnimation / 255f; // Temporary
@@ -204,6 +234,6 @@ public static class PieUI
 
             if (hovered && tooltip != string.Empty)
                 ImGui.SetTooltip(tooltip);
-        };
+        }
     }
 }

@@ -305,7 +305,7 @@ public class BarUI : IDisposable
 
             CheckDrag();
 
-            PluginUI.DrawExternalWindow(() => DrawConfig(), IsDocked);
+            PluginUI.DrawExternalWindow(static bar => bar.DrawConfig(), this, IsDocked);
 
             SetupSize();
 
@@ -461,7 +461,7 @@ public class BarUI : IDisposable
                 ImGui.OpenPopup("addShortcut");
             ImGuiEx.PopFontScale();
             QoLBar.Font.Pop();
-            ImGuiEx.SetItemTooltip("Add a new shortcut.\nRight click this (or the bar background) for options.\nRight click other shortcuts to edit them.", ImGuiHoveredFlags.AllowWhenBlockedByPopup);
+            ImGuiEx.SetItemTooltip("Add a new shortcut.\nRight click this (or the bar background) for options.\nRight click other shortcuts to edit them.".Loc(), ImGuiHoveredFlags.AllowWhenBlockedByPopup);
             QoLBar.Font.Push();
 
             var size = ImGui.GetItemRectMax() - ImGui.GetWindowPos();
@@ -472,7 +472,7 @@ public class BarUI : IDisposable
         if (IsHovered && ImGui.IsMouseReleased(ImGuiMouseButton.Right) && ImGui.GetIO().KeyShift)
             ImGui.OpenPopup("addShortcut");
 
-        PluginUI.DrawExternalWindow(() => ShortcutUI.DrawAddShortcut(this, null), IsDocked);
+        PluginUI.DrawExternalWindow(static bar => ShortcutUI.DrawAddShortcut(bar, null), this, IsDocked);
     }
 
     // TODO: rewrite this, preferably insert into ShortcutUI
@@ -536,13 +536,13 @@ public class BarUI : IDisposable
 
             if (ImGui.BeginTabBar("Config Tabs", ImGuiTabBarFlags.NoTooltip))
             {
-                if (ImGui.BeginTabItem("General"))
+                if (ImGui.BeginTabItem("General".Loc()))
                 {
                     ConfigEditorUI.EditBarGeneralOptions(this);
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Style"))
+                if (ImGui.BeginTabItem("Style".Loc()))
                 {
                     ConfigEditorUI.EditBarStyleOptions(this);
                     ImGui.EndTabItem();
@@ -553,18 +553,18 @@ public class BarUI : IDisposable
 
             ImGui.Spacing();
             ImGui.Spacing();
-            if (ImGui.Button("Export"))
+            if (ImGui.Button("Export".Loc()))
                 ImGui.SetClipboardText(Importing.ExportBar(Config, false));
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Export to clipboard with minimal settings (May change with updates).\n" +
-                                 "Right click to export with every setting (Longer string, doesn't change).");
+                ImGui.SetTooltip(("Export to clipboard with minimal settings (May change with updates).\n" +
+                                 "Right click to export with every setting (Longer string, doesn't change).").Loc());
 
                 if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
                     ImGui.SetClipboardText(Importing.ExportBar(Config, true));
             }
             ImGui.SameLine();
-            if (ImGui.Button("QoL Bar Config"))
+            if (ImGui.Button("QoL Bar Config".Loc()))
                 QoLBar.Plugin.ToggleConfig();
 
             ImGuiEx.ClampWindowPosToViewport();

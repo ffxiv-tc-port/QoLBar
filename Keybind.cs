@@ -271,14 +271,23 @@ public static class Keybind
 
     public static void SetupHotkeys(List<BarUI> bars)
     {
-        foreach (var bar in bars.Where(bar => bar.IsVisible))
-            bar.SetupHotkeys();
+        // 這裡與 CheckConflicts、DoPieHotkeys 每幀都跑：刻意不用 LINQ（Where 每次配置迭代器，帶捕捉的 Any 每次配置閉包與委派）。
+        foreach (var bar in bars)
+        {
+            if (bar.IsVisible)
+                bar.SetupHotkeys();
+        }
     }
 
     private static void CheckConflicts(int hotkey)
     {
-        if (hotkeys.Any(kv => kv.Item2.Config.Hotkey == hotkey))
+        foreach (var (_, sh) in hotkeys)
+        {
+            if (sh.Config.Hotkey != hotkey) continue;
+
             conflictingHotkeys.Add(hotkey);
+            return;
+        }
     }
 
     private static void GetKeyStates()
@@ -340,8 +349,10 @@ public static class Keybind
 
         if (!PieUI.enabled) return;
 
-        foreach (var bar in QoLBar.Plugin.ui.bars.Where(bar => bar.Config.Hotkey > 0 && bar.CheckConditionSet()))
+        foreach (var bar in QoLBar.Plugin.ui.bars)
         {
+            if (bar.Config.Hotkey <= 0 || !bar.CheckConditionSet()) continue;
+
             var hotkey = bar.Config.Hotkey;
             CheckConflicts(hotkey);
 
@@ -371,21 +382,14 @@ public static class Keybind
             var activated = IsHotkeyActivated(key, onUp) && (!onUp || !state.wasShortHeld) && (key | modifiers) == config.Hotkey;
             if (!activated) continue;
 
-            if (config.Type == ShCfg.ShortcutType.Category && config.Mode == ShCfg.ShortcutMode.Default)
+            if (config.Type == ShCfg.ShortcutType.Category && config.Mode == ShCfg.ShortcutMode.Default || config.Type == ShCfg.ShortcutType.PluginMenu)
             {
                 // TODO: Make less hacky
-                bar.ForceReveal();
-                var parent = sh.parent;
-                while (parent != null)
-                {
-                    parent.activated = true;
-                    parent = parent.parent;
-                }
-                sh.activated = true;
+                sh.ActivateWithParents(ClickLog.Source.Hotkey);
             }
             else
             {
-                sh.OnClick(false, false, false, true);
+                sh.OnClick(ClickLog.Source.Hotkey, false, false, false, true);
             }
 
             if (!config.KeyPassthrough)
@@ -422,31 +426,31 @@ public static class Keybind
     public static bool KeybindInput(ShCfg sh)
     {
         var ret = false;
-        if (InputHotkey("Hotkey", ref sh.Hotkey))
+        if (InputHotkey("Hotkey".Loc(), ref sh.Hotkey))
         {
             QoLBar.Config.Save();
             ret = true;
         }
-        ImGuiEx.SetItemTooltip("Press escape to clear the hotkey.");
+        ImGuiEx.SetItemTooltip("Press escape to clear the hotkey.".Loc());
 
         if (sh.Hotkey <= 0) return ret;
 
-        if (ImGui.Checkbox("Pass Input to Game", ref sh.KeyPassthrough))
+        if (ImGui.Checkbox("Pass Input to Game".Loc(), ref sh.KeyPassthrough))
             QoLBar.Config.Save();
-        ImGuiEx.SetItemTooltip("Disables the hotkey from blocking the game input.");
+        ImGuiEx.SetItemTooltip("Disables the hotkey from blocking the game input.".Loc());
         return ret;
     }
 
     public static bool KeybindInput(BarCfg bar)
     {
         var ret = false;
-        if (InputHotkey("Pie Hotkey", ref bar.Hotkey))
+        if (InputHotkey("Pie Hotkey".Loc(), ref bar.Hotkey))
         {
             QoLBar.Config.Save();
             ret = true;
         }
-        ImGuiEx.SetItemTooltip("Use this to specify a held hotkey to bring the bar up as a pie menu.\n" +
-                               "Press escape to clear the hotkey.");
+        ImGuiEx.SetItemTooltip(("Use this to specify a held hotkey to bring the bar up as a pie menu.\n" +
+                               "Press escape to clear the hotkey.").Loc());
         return ret;
     }
 
