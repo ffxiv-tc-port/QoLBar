@@ -171,6 +171,7 @@ public class QoLBar : IDalamudPlugin
 
         Config.DoTimedBackup();
         Game.ReadyCommand();
+        Game.ShowPendingNotices();
         Keybind.Run();
         Keybind.SetupHotkeys(ui.bars);
         ConditionManager.UpdateCache();

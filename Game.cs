@@ -149,6 +149,15 @@ public unsafe class Game
     // 兩個位址要嘛都解到、要嘛都是 0（Initialize 保證）：只改寫其中一個會讓遊戲複製與執行的行數不一致。
     public static bool ExtendedMacroLinesAvailable => numCopiedMacroLinesPtr != nint.Zero && numExecutedMacroLinesPtr != nint.Zero;
 
+    private const string copiedLinesSig = "48 8D 77 70 BF ?? 00 00 00";
+    private const string executedLinesSig = "41 83 F8 ?? 0F 8D ?? ?? ?? ?? 49 6B C8 68";
+    // 核對時讀到的原值；Dispose 寫回它們。只在兩個位址都通過核對時才有意義。
+    private static byte copiedLinesOriginal;
+    private static byte executedLinesOriginal;
+    // 核對不過（命中不唯一、讀不到、原值不符）時由 Initialize 設；提示旗標由 framework 執行緒登入後印一次就清。
+    private static bool macroLinesCheckFailed;
+    private static volatile bool macroLinesCheckNoticePending;
+
     public static nint numCopiedMacroLinesPtr = nint.Zero;
     public static byte NumCopiedMacroLines
     {
@@ -196,12 +205,7 @@ public unsafe class Game
         //SignatureHelper.Initialise(typeof(Game));
         DalamudApi.GameInteropProvider.InitializeFromAttributes(new Game());
 
-        if (DalamudApi.SigScanner.TryScanText("48 8D 77 70 BF ?? 00 00 00", out var copiedLines)
-            && DalamudApi.SigScanner.TryScanText("41 83 F8 ?? 0F 8D ?? ?? ?? ?? 49 6B C8 68", out var executedLines))
-        {
-            numCopiedMacroLinesPtr = copiedLines + 0x5;
-            numExecutedMacroLinesPtr = executedLines + 0x3;
-        }
+        ResolveMacroLineSites();
 
         LogUnresolved();
 
@@ -213,6 +217,61 @@ public unsafe class Game
         ExecuteMacroHook?.Enable();
     }
 
+    // 改的是遊戲碼裡的立即數：特徵碼改版後若漂到別的函式，寫進去的 15～30 就成了那裡的常數（可能是迴圈上界＝越界寫入）。
+    // 所以兩條都要恰好命中一處、原值等於遊戲的巨集行數才設位址；任一不過兩個都不設＝整項停用、一個位元組都不寫。
+    private static void ResolveMacroLineSites()
+    {
+        var expected = (byte)ExtendedMacro.GameLines;
+        var copiedHits = DalamudApi.SigScanner.ScanAllText(copiedLinesSig);
+        var executedHits = DalamudApi.SigScanner.ScanAllText(executedLinesSig);
+        var copied = MacroLinesPatchCheck.Verify(copiedHits, 0x5, expected, ReadGameByte, out var copiedSite, out var copiedValue);
+        var executed = MacroLinesPatchCheck.Verify(executedHits, 0x3, expected, ReadGameByte, out var executedSite, out var executedValue);
+
+        if (copied == MacroLinesPatchCheck.Result.Ok && executed == MacroLinesPatchCheck.Result.Ok)
+        {
+            copiedLinesOriginal = copiedValue;
+            executedLinesOriginal = executedValue;
+            numCopiedMacroLinesPtr = copiedSite;
+            numExecutedMacroLinesPtr = executedSite;
+            return;
+        }
+
+        // 只是沒命中＝既有的「特徵碼對不上」，交給 LogUnresolved 的 Warning 與使用時的提示。
+        if (copied is MacroLinesPatchCheck.Result.Ok or MacroLinesPatchCheck.Result.NotFound
+            && executed is MacroLinesPatchCheck.Result.Ok or MacroLinesPatchCheck.Result.NotFound)
+            return;
+
+        macroLinesCheckFailed = true;
+        macroLinesCheckNoticePending = true;
+        DalamudApi.LogError("[改版防護] 巨集行數上限的遊戲碼核對不過，不改動遊戲碼、超過 15 行的巨集停用（15 行以內照常）："
+            + $"複製行數 {DescribeCheck(copied, copiedHits, 0x5, copiedValue, expected)}；"
+            + $"執行行數 {DescribeCheck(executed, executedHits, 0x3, executedValue, expected)}。");
+    }
+
+    private static string DescribeCheck(MacroLinesPatchCheck.Result result, nint[] hits, int offset, byte value, byte expected)
+    {
+        string Rva() => $"+0x{(long)(hits[0] + offset - DalamudApi.SigScanner.Module.BaseAddress):X}";
+        return result switch
+        {
+            MacroLinesPatchCheck.Result.Ok => $"通過（{Rva()}＝{value}）",
+            MacroLinesPatchCheck.Result.NotFound => "特徵碼沒有命中",
+            MacroLinesPatchCheck.Result.Ambiguous => $"特徵碼命中 {hits.Length} 處（應為 1 處）",
+            MacroLinesPatchCheck.Result.Unreadable => $"讀不到 {Rva()}",
+            MacroLinesPatchCheck.Result.Mismatch => $"{Rva()} 讀到 {value}（應為 {expected}）",
+            _ => result.ToString(),
+        };
+    }
+
+    private static byte? ReadGameByte(nint address) => SafeMemory.Read<byte>(address, out var value) ? value : null;
+
+    /// <summary>framework 執行緒每幀呼叫。核對不過的提示等登入後才印（登入前印進聊天可能看不到），只印一次。</summary>
+    public static void ShowPendingNotices()
+    {
+        if (!macroLinesCheckNoticePending || !DalamudApi.ClientState.IsLoggedIn) return;
+        macroLinesCheckNoticePending = false;
+        QoLBar.PrintError("The game code for the macro line limit does not match what QoL Bar expects, so it was left untouched and macros using more than 15 lines are disabled until QoL Bar is updated for this game version.".Loc());
+    }
+
     // 載入時每項印一次，寫給看 log 的人：少了哪個遊戲函式、停掉哪一項。
     private static void LogUnresolved()
     {
@@ -222,7 +281,7 @@ public unsafe class Game
             DalamudApi.LogWarning("[改版防護] 找不到「查詢指令種類」的遊戲函式（特徵碼對不上）：聊天發言類指令不再排隊間隔送出，超過 15 行的巨集停用；其餘指令照常。");
         if (ExecuteMacroHook == null)
             DalamudApi.LogWarning("[改版防護] 找不到「執行巨集」的遊戲函式（特徵碼對不上）：//m 巨集停用（按下時會在聊天視窗提示）。");
-        if (!ExtendedMacroLinesAvailable)
+        if (!ExtendedMacroLinesAvailable && !macroLinesCheckFailed)
             DalamudApi.LogWarning("[改版防護] 找不到巨集行數上限的兩個位址（特徵碼對不上）：超過 15 行的巨集停用，15 行以內照常。");
         if (startPerformance == null || performanceStruct == nint.Zero)
             DalamudApi.LogWarning("[改版防護] 找不到「開始演奏」的遊戲函式或資料位址（特徵碼對不上）：/performance 停用（使用時會在聊天視窗提示）。");
@@ -581,7 +640,8 @@ public unsafe class Game
     public static void Dispose()
     {
         ExecuteMacroHook?.Dispose();
-        NumCopiedMacroLines = 15;
-        NumExecutedMacroLines = 15;
+        // 寫回核對時讀到的原值；沒通過核對時兩個位址都是 0，setter 不寫。
+        NumCopiedMacroLines = copiedLinesOriginal;
+        NumExecutedMacroLines = executedLinesOriginal;
     }
 }
