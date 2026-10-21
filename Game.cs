@@ -228,23 +228,31 @@ public unsafe class Game
     private static void ResolveMacroLineSites()
     {
         var expected = (byte)ExtendedMacro.GameLines;
+        var maxOwn = (byte)ExtendedMacro.numLines;
         var copiedHits = DalamudApi.SigScanner.ScanAllText(copiedLinesSig);
         var executedHits = DalamudApi.SigScanner.ScanAllText(executedLinesSig);
-        var copied = MacroLinesPatchCheck.Verify(copiedHits, 0x5, expected, ReadGameByte, out var copiedSite, out var copiedValue);
-        var executed = MacroLinesPatchCheck.Verify(executedHits, 0x3, expected, ReadGameByte, out var executedSite, out var executedValue);
+        var copied = MacroLinesPatchCheck.Verify(copiedHits, 0x5, expected, maxOwn, ReadGameByte, out var copiedSite, out var copiedValue);
+        var executed = MacroLinesPatchCheck.Verify(executedHits, 0x3, expected, maxOwn, ReadGameByte, out var executedSite, out var executedValue);
 
-        if (copied == MacroLinesPatchCheck.Result.Ok && executed == MacroLinesPatchCheck.Result.Ok)
+        var decision = MacroLinesPatchCheck.Decide(copied, executed);
+        if (decision == MacroLinesPatchCheck.Decision.Apply)
         {
-            copiedLinesOriginal = copiedValue;
-            executedLinesOriginal = executedValue;
+            // 上一個實例沒還原就卸載時，原值一律記成遊戲的 15，Dispose 才不會把殘值寫回去。
+            copiedLinesOriginal = expected;
+            executedLinesOriginal = expected;
             numCopiedMacroLinesPtr = copiedSite;
             numExecutedMacroLinesPtr = executedSite;
+            if (copied == MacroLinesPatchCheck.Result.LeftoverFromPreviousInstance || executed == MacroLinesPatchCheck.Result.LeftoverFromPreviousInstance)
+            {
+                NumCopiedMacroLines = expected;
+                NumExecutedMacroLines = expected;
+                DalamudApi.LogInfo($"[改版防護] 巨集行數上限停在上次 QoL Bar 卸載時沒還原的值（複製行數 {copiedValue}、執行行數 {executedValue}），已改回遊戲原值 {expected}。");
+            }
             return;
         }
 
         // 只是沒命中＝既有的「特徵碼對不上」，交給 LogUnresolved 的 Warning 與使用時的提示。
-        if (copied is MacroLinesPatchCheck.Result.Ok or MacroLinesPatchCheck.Result.NotFound
-            && executed is MacroLinesPatchCheck.Result.Ok or MacroLinesPatchCheck.Result.NotFound)
+        if (decision == MacroLinesPatchCheck.Decision.NotFound)
             return;
 
         macroLinesCheckFailed = true;
@@ -260,6 +268,7 @@ public unsafe class Game
         return result switch
         {
             MacroLinesPatchCheck.Result.Ok => $"通過（{Rva()}＝{value}）",
+            MacroLinesPatchCheck.Result.LeftoverFromPreviousInstance => $"通過（{Rva()}＝{value}，上次卸載沒還原）",
             MacroLinesPatchCheck.Result.NotFound => "特徵碼沒有命中",
             MacroLinesPatchCheck.Result.Ambiguous => $"特徵碼命中 {hits.Length} 處（應為 1 處）",
             MacroLinesPatchCheck.Result.Unreadable => $"讀不到 {Rva()}",
@@ -645,9 +654,15 @@ public unsafe class Game
 
     public static void Dispose()
     {
-        ExecuteMacroHook?.Dispose();
-        // 寫回核對時讀到的原值；沒通過核對時兩個位址都是 0，setter 不寫。
-        NumCopiedMacroLines = copiedLinesOriginal;
-        NumExecutedMacroLines = executedLinesOriginal;
+        try
+        {
+            ExecuteMacroHook?.Dispose();
+        }
+        finally
+        {
+            // 寫回遊戲原值；沒通過核對時兩個位址都是 0，setter 不寫。
+            NumCopiedMacroLines = copiedLinesOriginal;
+            NumExecutedMacroLines = executedLinesOriginal;
+        }
     }
 }

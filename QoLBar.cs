@@ -314,19 +314,29 @@ public class QoLBar : IDalamudPlugin
     {
         if (!disposing) return;
 
-        IPC.DisposedProvider.SendMessage();
-        IPC.Dispose();
+        // 不變式：Game.Dispose 一定要跑到，否則巨集行數停在上一個長巨集的值、遊戲巨集會多跑殘留的行。
+        try
+        {
+            try { IPC.DisposedProvider.SendMessage(); }
+            catch (Exception e) { DalamudApi.LogError("Failed to notify IPC subscribers of disposal", e); }
+            try { IPC.Dispose(); }
+            catch (Exception e) { DalamudApi.LogError("Failed to unregister IPC", e); }
 
-        Config.Save();
-        Config.SaveTempConfig();
+            try { Config.Save(); }
+            catch (Exception e) { DalamudApi.LogError("Failed to save config on unload", e); }
+            Config.SaveTempConfig();
 
-        DalamudApi.Framework.Update -= Update;
-        DalamudApi.PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfig;
-        DalamudApi.PluginInterface.UiBuilder.Draw -= Draw;
-        DalamudApi.Dispose();
+            DalamudApi.Framework.Update -= Update;
+            DalamudApi.PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfig;
+            DalamudApi.PluginInterface.UiBuilder.Draw -= Draw;
+            DalamudApi.Dispose();
 
-        ui.Dispose();
-        Game.Dispose();
+            ui.Dispose();
+        }
+        finally
+        {
+            Game.Dispose();
+        }
         CleanTextures(true);
     }
 
