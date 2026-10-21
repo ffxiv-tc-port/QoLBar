@@ -210,12 +210,18 @@ public unsafe class Game
         LogUnresolved();
 
         usables = DalamudApi.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Item>().Where(i => i.ItemAction.RowId > 0).ToDictionary(i => i.RowId, i => i.Name.ToString().ToLower())
-            .Concat(DalamudApi.DataManager.GetExcelSheet<Lumina.Excel.Sheets.EventItem>().Where(i => i.Action.RowId > 0).ToDictionary(i => i.RowId, i => i.Name.ToString().ToLower()))
+            .Concat(DalamudApi.DataManager.GetExcelSheet<Lumina.Excel.Sheets.EventItem>().Where(i => i.Action.RowId > 0).ToDictionary(i => i.RowId, i => EventItemName(i).ToLower()))
             .ToDictionary(kv => kv.Key, kv => kv.Value);
-        usables[aetherCompassID] = DalamudApi.DataManager.GetExcelSheet<Lumina.Excel.Sheets.EventItem>().GetRowOrDefault(aetherCompassID)?.Name.ToString().ToLower();
+        usables[aetherCompassID] = DalamudApi.DataManager.GetExcelSheet<Lumina.Excel.Sheets.EventItem>().GetRowOrDefault(aetherCompassID) is { } compass
+            ? EventItemName(compass).ToLower()
+            : null;
 
         ExecuteMacroHook?.Enable();
     }
+
+    // 台服 EventItem 的名稱放在 Singular（Name 幾乎全空）；Name 有值時照舊用 Name。
+    private static string EventItemName(in Lumina.Excel.Sheets.EventItem row)
+        => (row.Name.IsEmpty ? row.Singular : row.Name).ToString();
 
     // 改的是遊戲碼裡的立即數：特徵碼改版後若漂到別的函式，寫進去的 15～30 就成了那裡的常數（可能是迴圈上界＝越界寫入）。
     // 所以兩條都要恰好命中一處、原值等於遊戲的巨集行數才設位址；任一不過兩個都不設＝整項停用、一個位元組都不寫。
