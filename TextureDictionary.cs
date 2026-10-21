@@ -28,7 +28,7 @@ public class TextureDictionary : ConcurrentDictionary<int, IDalamudTextureWrap>,
     private int loadingTasks = 0;
     private readonly Queue<Task> loadingQueue = new();
     private readonly Stopwatch emptyStopwatch = new();
-    private static readonly IDalamudTextureWrap disposedTexture = DalamudApi.TextureProvider.CreateFromRaw(RawImageSpecification.Rgba32(1, 1), [ 0 ]); // CreateEmpty seems to be bugged? returns a random image
+    private static readonly IDalamudTextureWrap disposedTexture = DalamudApi.TextureProvider.CreateFromRaw(RawImageSpecification.Rgba32(1, 1), [ 0, 0, 0, 0 ]); // CreateEmpty seems to be bugged? returns a random image
     private readonly bool useHR = false;
     private readonly bool useGrayscale = false;
 
