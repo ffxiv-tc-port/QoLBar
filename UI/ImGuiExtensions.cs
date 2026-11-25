@@ -101,6 +101,19 @@ public static class ImGuiEx
         }
     }
 
+    // Dalamud 內部 InterfaceManager.DefaultFontSizePx；UiBuilder.DefaultFontSizePx 是使用者改過的字級，不能當分母。
+    private const float DalamudFactoryFontSizePx = 16f;
+
+    /// <summary>Dalamud 目前字級相對出廠字級的倍率（已含整體縮放）。首幀前退回整體縮放、不寫 log。可以從任何執行緒讀。</summary>
+    public static float UiScale
+    {
+        get
+        {
+            var v = frameFontSize;
+            return v > 0 ? v / DalamudFactoryFontSizePx : ImGuiHelpers.GlobalScale;
+        }
+    }
+
     /// <summary>上一幀的 <c>ImGuiHelpers.MainViewport.Size</c>。可以從任何執行緒讀。</summary>
     public static Vector2 FrameMainViewportSize
     {
@@ -538,7 +551,7 @@ public static class ImGuiEx
     {
         if (ImGui.IsWindowCollapsed()) return false;
 
-        var scale = ImGuiHelpers.GlobalScale;
+        var scale = UiScale;
         var prevCursorPos = ImGui.GetCursorPos();
         var buttonSize = new Vector2(20 * scale);
         var buttonPos = new Vector2(ImGui.GetWindowWidth() - buttonSize.X - 34 * scale - ImGui.GetStyle().FramePadding.X * 2, 2);

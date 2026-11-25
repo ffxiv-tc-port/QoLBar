@@ -140,7 +140,7 @@ public static class ConditionSetUI
         if (ImGui.IsItemHovered() && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
             Game.ExecuteCommand("/xldata condition");
 
-        var listHeight = 250 * ImGuiHelpers.GlobalScale;
+        var listHeight = 250 * ImGuiEx.UiScale;
         var listWidth = (ImGui.GetWindowContentRegionMax().X - ImGui.GetWindowContentRegionMin().X - ImGui.GetStyle().ItemSpacing.X) / 2;
 
         ImGui.SameLine(listWidth);

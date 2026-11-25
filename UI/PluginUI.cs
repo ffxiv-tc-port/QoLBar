@@ -77,7 +77,7 @@ public class PluginUI : IDisposable
     {
         if (!ImGuiEx.SetBoolOnGameFocus(ref _displayOutsideMain)) return;
 
-        ImGui.SetNextWindowSizeConstraints(new Vector2(610, 650) * ImGuiHelpers.GlobalScale, ImGuiHelpers.MainViewport.Size);
+        ImGui.SetNextWindowSizeConstraints(new Vector2(610, 650) * ImGuiEx.UiScale, ImGuiHelpers.MainViewport.Size);
         ImGui.Begin("QoL Bar Configuration".Loc(), ref configOpen);
 
         ImGuiEx.ShouldDrawInViewport(out _displayOutsideMain);
@@ -152,7 +152,7 @@ public class PluginUI : IDisposable
             ImGuiEx.SetItemTooltip("Options".Loc());
             bars[i].DrawConfig();
             ImGui.SameLine();
-            ImGui.SetNextItemWidth(27 * ImGuiHelpers.GlobalScale);
+            ImGui.SetNextItemWidth(27 * ImGuiEx.UiScale);
             if (ImGui.Button(bar.Hidden ? "R" : "H", letterButtonSize))
                 bars[i].IsHidden = !bars[i].IsHidden;
             ImGuiEx.SetItemTooltip(bar.Hidden ? "Reveal".Loc() : "Hide".Loc());
@@ -283,6 +283,11 @@ public class PluginUI : IDisposable
         if (ImGui.InputInt("Backup Timer".Loc(), ref QoLBar.Config.BackupTimer))
             QoLBar.Config.Save();
         ImGuiEx.SetItemTooltip("Number of minutes since the last save to perform a backup. Set to 0 to disable.".Loc());
+        ImGui.SameLine(halfWidth);
+        if (ImGui.Checkbox("Scale Bars with Dalamud Font Size".Loc(), ref QoLBar.Config.FollowDalamudFontSize))
+            QoLBar.Config.Save();
+        ImGuiEx.SetItemTooltip(("Bar, category and pie text and button widths grow and shrink with Dalamud's font size and global scale.\n" +
+                               "When off, bar text keeps its original fixed size.").Loc());
 
         ImGui.Spacing();
         ImGui.Spacing();

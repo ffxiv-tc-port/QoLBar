@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Linq.Expressions;
 using Dalamud.Interface.ManagedFontAtlas;
+using Dalamud.Interface.Utility;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
@@ -194,18 +195,33 @@ public class QoLBar : IDalamudPlugin
 
         if (!pluginReady) return;
 
+        // 字型圖集照最終顯示倍率建（放大才不糊）；倍率變了（開關或 Dalamud 字級）才重建。
+        if (Math.Abs(BarTextScale - fontBuiltScale) > 0.01f)
+            SetupFont();
+
         Config.DrawUpdateWindow();
         ui.Draw();
     }
 
+    /// <summary>快捷列／分類的文字倍率：開「跟隨 Dalamud 字型大小」＝Dalamud 字級倍率，關＝1（原行為：文字固定大小）。</summary>
+    public static float BarTextScale => Config.FollowDalamudFontSize ? ImGuiEx.UiScale : 1f;
+
+    /// <summary>快捷列／分類寬度與圓餅選單的倍率：開＝Dalamud 字級倍率，關＝整體縮放（原行為）。</summary>
+    public static float BarSizeScale => Config.FollowDalamudFontSize ? ImGuiEx.UiScale : ImGuiHelpers.GlobalScale;
+
+    private static float fontBuiltScale = 1f;
+
     public static void SetupFont()
     {
         Font?.Dispose();
+        fontBuiltScale = BarTextScale;
+        // 在這裡就算好：OnPreBuild 會在 Dalamud 重建圖集時延後再跑，那時不該再讀可能過期的倍率。
+        var sizePx = Math.Min(Math.Max(Config.FontSize * fontBuiltScale, 1), MaxFontSize);
         Font = DalamudApi.PluginInterface.UiBuilder.FontAtlas.NewDelegateFontHandle(buildToolkit =>
         {
             buildToolkit.OnPreBuild(tk =>
             {
-                var config = new SafeFontConfig { SizePx = Math.Min(Math.Max(Config.FontSize, 1), MaxFontSize) };
+                var config = new SafeFontConfig { SizePx = sizePx };
                 var font = tk.AddDalamudAssetFont(DalamudAsset.NotoSansScMedium, config);
                 config.MergeFont = font;
                 tk.AddGameSymbol(config);

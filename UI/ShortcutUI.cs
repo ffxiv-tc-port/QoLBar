@@ -409,7 +409,7 @@ public class ShortcutUI : IDisposable
             return;
         }
 
-        ImGuiEx.PushFontSize(QoLBar.DefaultFontSize * Config.CategoryScale);
+        ImGuiEx.PushFontSize(QoLBar.DefaultFontSize * Config.CategoryScale * QoLBar.BarTextScale);
 
         if (ImGui.IsWindowAppearing())
             _fuckImGui = true;
@@ -433,7 +433,7 @@ public class ShortcutUI : IDisposable
         }
 
         var cols = Config.CategoryColumns;
-        var width = (float)Math.Round(Config.CategoryWidth * ImGuiHelpers.GlobalScale * Config.CategoryScale);
+        var width = (float)Math.Round(Config.CategoryWidth * QoLBar.BarSizeScale * Config.CategoryScale);
 
         for (int i = 0; i < children.Count; i++)
         {
@@ -497,7 +497,7 @@ public class ShortcutUI : IDisposable
             return;
         }
 
-        ImGuiEx.PushFontSize(QoLBar.DefaultFontSize * Config.CategoryScale);
+        ImGuiEx.PushFontSize(QoLBar.DefaultFontSize * Config.CategoryScale * QoLBar.BarTextScale);
 
         if (ImGui.IsWindowAppearing())
             _fuckImGui = true;
@@ -521,7 +521,7 @@ public class ShortcutUI : IDisposable
         }
 
         var cols = Config.CategoryColumns;
-        var width = (float)Math.Round(Config.CategoryWidth * ImGuiHelpers.GlobalScale * Config.CategoryScale);
+        var width = (float)Math.Round(Config.CategoryWidth * QoLBar.BarSizeScale * Config.CategoryScale);
         var height = ImGui.GetFontSize() + Style.FramePadding.Y * 2;
 
         var drawn = 0;
@@ -650,7 +650,7 @@ public class ShortcutUI : IDisposable
         }
 
         ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.Button(vertical ? FontAwesomeIcon.ArrowsAltV.ToIconString() : FontAwesomeIcon.ArrowsAltH.ToIconString(), new Vector2(30 * ImGuiHelpers.GlobalScale, 0));
+        ImGui.Button(vertical ? FontAwesomeIcon.ArrowsAltV.ToIconString() : FontAwesomeIcon.ArrowsAltH.ToIconString(), new Vector2(30 * ImGuiEx.UiScale, 0));
         ImGui.PopFont();
         if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
         {

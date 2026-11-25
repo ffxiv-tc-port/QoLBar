@@ -46,7 +46,7 @@ public static class ConfigEditorUI
 
                 var str = $"{(char)i}";
                 ImGui.SetWindowFontScale(1.5f);
-                if (ImGui.Button(str, new Vector2(36 * ImGuiHelpers.GlobalScale)))
+                if (ImGui.Button(str, new Vector2(36 * ImGuiEx.UiScale)))
                 {
                     InsertString(ref temp, str);
                     QoLBar.Config.Save();

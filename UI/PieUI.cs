@@ -59,7 +59,7 @@ public static class PieUI
                     }
 
                     ImGuiPie.SetPieRadius(50);
-                    ImGuiPie.SetPieScale(ImGuiHelpers.GlobalScale * bar.Config.Scale);
+                    ImGuiPie.SetPieScale(QoLBar.BarSizeScale * bar.Config.Scale);
                     if (!QoLBar.Config.PieAlternateAngle)
                         ImGuiPie.SetPieRotationOffset((float)(Math.PI - Math.PI / bar.children.Count));
                     ImGuiPie.DisableRepositioning();

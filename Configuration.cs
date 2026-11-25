@@ -139,6 +139,8 @@ public class Configuration : IPluginConfiguration
     public bool PiesReadjustMouse = false;
     public bool UsePenumbra = false;
     public float FontSize = QoLBar.DefaultFontSize;
+    // 預設關：開了會讓改過 Dalamud 字級或整體縮放的既有使用者，快捷列整個變大。
+    public bool FollowDalamudFontSize = false;
 
     public string PluginVersion = ".INITIAL";
     [JsonIgnore] public string PrevPluginVersion = string.Empty;
@@ -355,7 +357,7 @@ public class Configuration : IPluginConfiguration
         if (!displayUpdateWindow) return;
         var window = ImGuiHelpers.MainViewport.Size;
         ImGui.SetNextWindowPos(new System.Numerics.Vector2(window.X / 2, window.Y / 2), ImGuiCond.Appearing, new System.Numerics.Vector2(0.5f));
-        ImGui.SetNextWindowSize(new System.Numerics.Vector2(550, 280) * ImGuiHelpers.GlobalScale);
+        ImGui.SetNextWindowSize(new System.Numerics.Vector2(550, 280) * ImGuiEx.UiScale);
         ImGui.Begin("QoL Bar Updated!".Loc(), ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoSavedSettings);
         ImGui.TextWrapped(("QoL Bar has a new feature where categories may now run commands like a normal shortcut, " +
                           "this may cause problems for people who were using the plugin BEFORE JANUARY 4TH, due to " +

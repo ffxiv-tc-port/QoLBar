@@ -291,7 +291,7 @@ public class BarUI : IDisposable
             if (!IsDocked)
                 ImGuiEx.ShouldDrawInViewport(out _displayOutsideMain);
 
-            ImGuiEx.PushFontSize(QoLBar.DefaultFontSize * Config.Scale);
+            ImGuiEx.PushFontSize(QoLBar.DefaultFontSize * Config.Scale * QoLBar.BarTextScale);
 
             if (_mouseRevealed && ImGui.IsWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup | ImGuiHoveredFlags.AllowWhenBlockedByActiveItem))
                 Reveal();
@@ -436,7 +436,7 @@ public class BarUI : IDisposable
     private void DrawShortcuts()
     {
         var cols = Config.Columns;
-        var width = (float)Math.Round(Config.ButtonWidth * ImGuiHelpers.GlobalScale * Config.Scale);
+        var width = (float)Math.Round(Config.ButtonWidth * QoLBar.BarSizeScale * Config.Scale);
         for (int i = 0; i < children.Count; i++)
         {
             var ui = children[i];
@@ -457,7 +457,7 @@ public class BarUI : IDisposable
         {
             var height = ImGui.GetFontSize() + Style.FramePadding.Y * 2;
             ImGuiEx.PushFontScale(ImGuiEx.GetFontScale() * Config.FontScale);
-            if (ImGui.Button("+", new Vector2(Config.ButtonWidth * ImGuiHelpers.GlobalScale * Config.Scale, height)))
+            if (ImGui.Button("+", new Vector2(Config.ButtonWidth * QoLBar.BarSizeScale * Config.Scale, height)))
                 ImGui.OpenPopup("addShortcut");
             ImGuiEx.PopFontScale();
             QoLBar.Font.Pop();
