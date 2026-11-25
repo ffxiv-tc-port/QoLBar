@@ -44,3 +44,9 @@
 - 圖示瀏覽器補上新月島等分類的中文名稱。
 - 多處降低記憶體用量、減少卡頓。
 - 介面繁體中文化（Free Company 用台服官方的「公會」）。
+
+## 安裝
+
+`/xlsettings` 開「Dalamud 設定」→「試驗性功能」→「第三方插件倉庫」，加入 `https://raw.githubusercontent.com/ffxiv-tc-port/DalamudPluginsTC/main/repo.json` 並啟用、儲存，再到「插件管理員」（`/xlplugins`）安裝；同一個插件只裝這裡的版本，不要同時裝上游版。
+
+授權：上游未附授權。
